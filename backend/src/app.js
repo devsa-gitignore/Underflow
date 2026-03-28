@@ -10,6 +10,7 @@ import aiRoutes from './routes/ai.routes.js';
 import alertRoutes from './routes/alert.routes.js';
 import syncRoutes from './routes/sync.routes.js';
 import errorMiddleware from './middlewares/error.middleware.js';
+import complianceRoutes from './routes/compliance.routes.js';
 
 dotenv.config();
 
@@ -28,6 +29,7 @@ app.use('/sync', syncRoutes);
 app.use('/qr', qrRoutes);
 app.use('/comm', communicationRoutes);
 app.use('/voice', voiceRoutes);
+app.use('/compliance', complianceRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

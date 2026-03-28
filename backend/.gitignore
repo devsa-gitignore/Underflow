@@ -2,3 +2,5 @@
 node_modules/
 uploads/
 .md 
+test_whisper_db.js
+add_test_patient.js

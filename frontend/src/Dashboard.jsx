@@ -88,22 +88,20 @@ const englishText = {
 };
 
 function mapPatients(data) {
-  return data.map((patient) => ({
-    id: patient._id,
-    name: patient.name,
-    age: patient.age,
-    village: patient.village,
-    isPregnant: patient.isPregnant,
-    risk:
-      patient.currentRiskLevel?.toLowerCase() === 'critical'
-        ? 'red'
-        : patient.currentRiskLevel?.toLowerCase() === 'high'
-          ? 'red'
-          : patient.currentRiskLevel?.toLowerCase() === 'medium'
-            ? 'yellow'
-            : 'green',
-    issue: patient.pendingTask || (patient.isPregnant ? 'Pregnancy Tracking' : 'Task Pending'),
-  }));
+  return data.map((patient) => {
+    const riskLower = (patient.currentRiskLevel || 'LOW').toLowerCase();
+    const risk = (riskLower === 'critical' || riskLower === 'high') ? 'red' : riskLower === 'medium' ? 'yellow' : 'green';
+    return {
+      id: patient._id,
+      name: patient.name,
+      age: patient.age,
+      village: patient.village || 'Unassigned',
+      isPregnant: patient.isPregnant,
+      risk,
+      issue: patient.pendingTask || (patient.isPregnant ? 'Pregnancy Tracking' : 'Routine Checkup'),
+      time: risk === 'red' ? 'Overdue' : risk === 'yellow' ? 'Today' : 'On Track',
+    };
+  });
 }
 
 export default function Dashboard() {
@@ -128,12 +126,20 @@ export default function Dashboard() {
         const data = await response.json();
         setPatients(mapPatients(data));
       } catch {
-        setPatients([]);
+        // Fallback mock data for hackathon demo
+        setPatients([
+          { id: 'mock-1', name: 'Aarti Sharma', age: 28, risk: 'red', issue: 'Severe Anemia - BP 160/100', time: 'Overdue', village: 'Ward 4', isPregnant: true },
+          { id: 'mock-2', name: 'Pooja Patel', age: 24, risk: 'yellow', issue: 'Missed ANC Checkup', time: 'Today', village: 'Ward 4', isPregnant: true },
+          { id: 'mock-3', name: 'Sunita Devi', age: 34, risk: 'green', issue: 'Routine Checkup', time: 'On Track', village: 'Ward 5', isPregnant: false },
+          { id: 'mock-4', name: 'Rahul Kumar', age: 2, risk: 'green', issue: 'Vaccination', time: 'Done', village: 'Ward 2', isPregnant: false },
+          { id: 'mock-5', name: 'Meena Kumari', age: 22, risk: 'yellow', issue: 'Maternal Follow-up', time: 'Tomorrow', village: 'Ward 5', isPregnant: true },
+        ]);
       }
     };
 
     fetchPatients();
   }, []);
+
 
   const handlePhotoScan = (e) => {
     const file = e.target.files[0];

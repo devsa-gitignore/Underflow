@@ -25,13 +25,22 @@ export const sendSMS = async (to, body) => {
 /**
  * Trigger an outbound IVR call.
  */
-export const startIVRCall = async (to, audioUrl) => {
+export const startIVRCall = async (to, audioUrl, baseUrl) => {
   if (!client) throw new Error('Twilio not configured for Live Mode');
   
+  // If baseUrl provided, instruct Twilio to hit our language selection IVR
+  if (baseUrl) {
+    return client.calls.create({
+      to,
+      from: process.env.TWILIO_PHONE_NUMBER,
+      url: `${baseUrl}/comm/ivr/start`,
+    });
+  }
+
   const twiml = audioUrl 
     ? `<Response><Play>${audioUrl}</Play></Response>`
     : `<Response>
-  <Say voice="alice">
+  <Say voice="Polly.Aditi" language="en-IN">
     Hello.
     <Pause length="1"/>
     This is Swasthya Sathi calling.

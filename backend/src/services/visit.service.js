@@ -1,5 +1,7 @@
 import Visit from '../models/Visit.js';
 import Patient from '../models/Patient.js';
+import Alert from '../models/Alert.js';
+import { SEVERITY } from '../config/constants.js';
 
 export const createVisit = async (patientId, ashaId, visitData) => {
   const visit = await Visit.create({
@@ -8,15 +10,58 @@ export const createVisit = async (patientId, ashaId, visitData) => {
     ...visitData,
   });
 
-  // Update patient's current risk level to reflect the latest visit
+  const patient = await Patient.findById(patientId);
+  if (!patient) return visit;
+
+  // 1. Update patient risk level from visit
   if (visitData.riskLevel) {
-    await Patient.findByIdAndUpdate(patientId, {
-      currentRiskLevel: visitData.riskLevel,
+    patient.currentRiskLevel = visitData.riskLevel;
+  }
+
+  // 2. DYNAMIC TASK MANAGEMENT — auto-assign pendingTask based on patient state
+  const risk = (visitData.riskLevel || patient.currentRiskLevel || 'LOW').toUpperCase();
+  if (risk === 'CRITICAL' || risk === 'HIGH') {
+    patient.pendingTask = 'High Risk monitoring';
+  } else if (patient.isPregnant) {
+    patient.pendingTask = 'Maternal Follow-up';
+  } else if (patient.age < 15) {
+    patient.pendingTask = 'Vaccination';
+  } else if (risk === 'MEDIUM') {
+    patient.pendingTask = 'Follow-up Required';
+  } else {
+    patient.pendingTask = 'Routine Checkup';
+  }
+  await patient.save();
+
+  // 3. AUTOMATED ALERTING — auto-create alert for dangerous vitals
+  const bp = visitData.vitals?.bloodPressure;
+  if (bp) {
+    const parts = bp.split('/').map(Number);
+    if (parts.length === 2 && (parts[0] >= 140 || parts[1] >= 90)) {
+      await Alert.create({
+        patientId,
+        ashaId,
+        type: 'HIGH_BP_ALERT',
+        message: `⚠️ High blood pressure detected (${bp}) for ${patient.name}. Immediate monitoring recommended. ${parts[0] >= 160 ? 'CRITICAL: Refer to PHC immediately.' : 'Schedule follow-up within 48 hours.'}`,
+        severity: parts[0] >= 160 ? SEVERITY.HIGH : SEVERITY.MEDIUM,
+      });
+    }
+  }
+
+  // Auto-alert for high risk visits
+  if (risk === 'CRITICAL' || risk === 'HIGH') {
+    await Alert.create({
+      patientId,
+      ashaId,
+      type: 'HIGH_RISK_VISIT',
+      message: `⚠️ ${risk} risk visit recorded for ${patient.name}. Symptoms: ${(visitData.symptoms || []).join(', ') || 'None reported'}. Immediate follow-up required.`,
+      severity: risk === 'CRITICAL' ? SEVERITY.HIGH : SEVERITY.MEDIUM,
     });
   }
 
   return visit;
 };
+
 
 export const getVisitsByPatient = async (patientId) => {
   const visits = await Visit.find({ patientId }).sort({ visitDate: -1 });
