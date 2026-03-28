@@ -5,6 +5,7 @@ import authRoutes from './routes/auth.routes.js';
 import patientRoutes from './routes/patient.routes.js';
 import aiRoutes from './routes/ai.routes.js';
 import alertRoutes from './routes/alert.routes.js';
+import syncRoutes from './routes/sync.routes.js';
 import errorMiddleware from './middlewares/error.middleware.js';
 
 dotenv.config();
@@ -19,6 +20,7 @@ app.use('/auth', authRoutes);
 app.use('/patients', patientRoutes);
 app.use('/ai', aiRoutes);
 app.use('/alerts', alertRoutes);
+app.use('/sync', syncRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

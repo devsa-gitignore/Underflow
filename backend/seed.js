@@ -64,6 +64,9 @@ const seedDB = async () => {
         qrCode: `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${genId}`,
         currentRiskLevel: randomRisk,
         isPregnant: isFemale && randomAge > 18 && randomAge < 45 && Math.random() > 0.6,
+        pendingTask: isFemale && Math.random() > 0.6 ? 'Maternal Follow-up' : 
+                     randomRisk === 'CRITICAL' || randomRisk === 'HIGH' ? 'High Risk monitoring' :
+                     Math.random() > 0.5 ? 'Vaccination' : 'Routine Checkup',
       });
     }
 

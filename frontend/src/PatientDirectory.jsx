@@ -45,6 +45,7 @@ const hindiText = {
   standardCheck: 'सामान्य जांच',
   daysAgo: 'दिन पहले',
   monthsAgo: 'महीने पहले',
+  awaitingAssessment: 'मूल्यांकन लंबित',
   ward: 'वार्ड',
 };
 
@@ -78,6 +79,7 @@ const englishText = {
   standardCheck: 'Standard Check',
   daysAgo: 'days ago',
   monthsAgo: 'months ago',
+  awaitingAssessment: 'Awaiting Assessment',
   ward: 'Ward',
 };
 
@@ -98,10 +100,12 @@ function translateTag(tag, language, text) {
 function translateIssue(issue, language, text) {
   if (language !== 'hi') return issue;
   if (issue === 'Routine Checkup') return text.routineCheckup;
-  if (issue === 'Pregnancy Tracking') return text.pregnancyTracking;
-  if (issue === 'Missed ANC') return text.missedAnc;
   if (issue === 'Polio Due') return text.polioDue;
   if (issue === 'Standard Check') return text.standardCheck;
+  if (issue === 'Maternal Follow-up') return 'मातृ अनुवर्ती';
+  if (issue === 'High Risk monitoring') return 'उच्च जोखिम निगरानी';
+  if (issue === 'Vaccination') return 'टीकाकरण';
+  if (issue === 'Awaiting Assessment') return text.awaitingAssessment;
   return issue;
 }
 
@@ -149,7 +153,7 @@ export default function PatientDirectory() {
                     ? 'yellow'
                     : 'green',
             tags: [p.isPregnant ? 'maternal' : 'general', p.currentRiskLevel.toLowerCase()],
-            issue: p.isPregnant ? 'Pregnancy Tracking' : 'Routine Checkup',
+            issue: p.pendingTask || (p.isPregnant ? 'Pregnancy Tracking' : 'Task Pending'),
             lastVisit: new Date(p.updatedAt).toLocaleDateString(),
           }));
           setPatients(mapped);
@@ -157,10 +161,8 @@ export default function PatientDirectory() {
       } catch {
         console.error('Backend fetch failed, using fallback mock data.');
       setPatients([
-          { id: 'SS-8829', name: 'Aarti Sharma', age: 28, ward: 'Ward 4', risk: 'red', tags: ['maternal', 'high-risk'], issue: 'BP 160/100', lastVisit: '2 days ago' },
-          { id: 'SS-8830', name: 'Pooja Patel', age: 24, ward: 'Ward 4', risk: 'yellow', tags: ['maternal'], issue: 'Missed ANC', lastVisit: '14 days ago' },
-          { id: 'SS-8831', name: 'Rahul Kumar', age: 2, ward: 'Ward 2', risk: 'green', tags: ['pediatric', 'vaccine'], issue: 'Polio Due', lastVisit: '2 months ago' },
-          { id: 'SS-8832', name: 'Sunita Devi', age: 34, ward: 'Ward 5', risk: 'green', tags: ['routine'], issue: 'Standard Check', lastVisit: '1 month ago' },
+          { id: 'SS-DEBUG1', name: 'DEBUG PATIENT 1', age: 99, ward: 'Ward 4', risk: 'red', tags: ['maternal'], issue: 'EMERGENCY SYNC TEST', lastVisit: 'NOW' },
+          { id: 'SS-DEBUG2', name: 'DEBUG PATIENT 2', age: 88, ward: 'Ward 2', risk: 'green', tags: ['general'], issue: 'DYNAMIC TASK TEST', lastVisit: 'NOW' },
         ]);
       } finally {
         setIsLoading(false);

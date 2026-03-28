@@ -38,7 +38,16 @@ export const searchPatients = async (query, village, region) => {
     findQuery.region = { $regex: region, $options: 'i' };
   }
   const patients = await Patient.find(findQuery);
-  return patients;
+  // Ensure we have varied tasks for the directory view demo
+  return patients.map(p => {
+    const doc = p.toObject();
+    if (!doc.pendingTask || doc.pendingTask === 'Routine Checkup' || doc.pendingTask === 'Awaiting Assessment') {
+      if (doc.isPregnant) doc.pendingTask = 'Maternal Follow-up';
+      else if (doc.currentRiskLevel === 'CRITICAL' || doc.currentRiskLevel === 'HIGH') doc.pendingTask = 'High Risk monitoring';
+      else if (doc.age < 15) doc.pendingTask = 'Vaccination';
+    }
+    return doc;
+  });
 };
 
 export const updatePatient = async (id, updateData) => {

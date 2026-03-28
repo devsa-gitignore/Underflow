@@ -52,6 +52,10 @@ const patientSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    pendingTask: {
+      type: String,
+    default: 'Awaiting Assessment',
+    },
   },
   {
     timestamps: true,

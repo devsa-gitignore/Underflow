@@ -107,7 +107,7 @@ function mapPatients(data) {
           : patient.currentRiskLevel?.toLowerCase() === 'medium'
             ? 'yellow'
             : 'green',
-    issue: patient.isPregnant ? 'Pregnancy Tracking' : 'Routine Checkup',
+    issue: patient.pendingTask || (patient.isPregnant ? 'Pregnancy Tracking' : 'Task Pending'),
   }));
 }
 
@@ -238,6 +238,9 @@ export default function Dashboard() {
     if (language !== 'hi') return issue;
     if (issue === 'Pregnancy Tracking') return 'गर्भावस्था ट्रैकिंग';
     if (issue === 'Routine Checkup') return 'नियमित जांच';
+    if (issue === 'Maternal Follow-up') return 'मातृ अनुवर्ती';
+    if (issue === 'High Risk monitoring') return 'उच्च जोखिम निगरानी';
+    if (issue === 'Vaccination') return 'टीकाकरण';
     return issue;
   };
 

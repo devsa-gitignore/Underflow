@@ -122,7 +122,8 @@ export default function AddPatient() {
     ward: '',
     address: '',
     category: '',
-    notes: '' 
+    notes: '',
+    pendingTask: 'Routine Checkup' 
   });
 
   const handleInputChange = (e) => {
@@ -154,6 +155,7 @@ export default function AddPatient() {
         village: formData.ward,
         region: 'Palghar', // Mock region
         isPregnant: formData.category === 'maternal',
+        pendingTask: formData.pendingTask || 'Routine Checkup',
       };
 
       // Create Patient
