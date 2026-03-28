@@ -1,7 +1,7 @@
 import asyncHandler from 'express-async-handler';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 import * as voiceService from '../services/voice.service.js';
-import { translationQueue } from '../queues/translation.queue.js';
+import { translationQueue, translationQueueAvailable } from '../queues/translation.queue.js';
 import translationStore from '../store/translationStore.js';
 
 // @desc    Upload an audio file to local disk
@@ -57,20 +57,35 @@ export const translateAudio = asyncHandler(async (req, res) => {
   }
 
   // 1. Generate unique job ID
-  const jobId = uuidv4();
+  const jobId = randomUUID();
 
   // 2. Initialize in-memory store for this job
   translationStore[jobId] = { status: 'queued' };
 
-  // 3. Add to BullMQ queue using file path
-  await translationQueue.add('translateAudio', { 
-    jobId, 
-    filePath: req.file.path,
-    originalname: req.file.originalname 
-  });
+  // 3. Add to BullMQ queue when available, otherwise process inline
+  if (translationQueueAvailable && translationQueue) {
+    await translationQueue.add('translateAudio', {
+      jobId,
+      filePath: req.file.path,
+      originalname: req.file.originalname,
+    });
+  } else {
+    translationStore[jobId].status = 'processing';
+    try {
+      const result = await voiceService.translateAudio({
+        path: req.file.path,
+        originalname: req.file.originalname,
+      });
+      translationStore[jobId].status = 'completed';
+      translationStore[jobId].translatedText = result.translatedText;
+    } catch (error) {
+      translationStore[jobId].status = 'failed';
+      translationStore[jobId].error = error.message;
+    }
+  }
 
   // 4. Return accepted status to client
-  res.status(202).json({ jobId, status: 'queued' });
+  res.status(202).json({ jobId, status: translationStore[jobId].status });
 });
 
 // @desc    Retrieve translation result logic

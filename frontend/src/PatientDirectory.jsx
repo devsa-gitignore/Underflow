@@ -13,6 +13,7 @@ import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { useLanguage } from './language-context';
 import { translatePersonName, translateWardLabel } from './text-utils';
+import { getStoredToken } from './auth-utils';
 
 const hindiText = {
   title: 'रोगी सूची',
@@ -126,7 +127,7 @@ export default function PatientDirectory() {
     const fetchPatients = async () => {
       setIsLoading(true);
       try {
-        const token = localStorage.getItem('swasthya_token');
+        const token = await getStoredToken();
         const response = await fetch('http://localhost:5000/patients/search', {
           headers: {
             Authorization: `Bearer ${token}`,

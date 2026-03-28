@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useLanguage } from './language-context';
 import { translatePersonName, translateWardLabel } from './text-utils';
+import { getStoredToken } from './auth-utils';
 
 export default function PatientProfile() {
   const navigate = useNavigate();
@@ -87,7 +88,7 @@ export default function PatientProfile() {
     const fetchPatient = async () => {
       setIsLoading(true);
       try {
-        const token = localStorage.getItem('swasthya_token');
+        const token = await getStoredToken();
         const response = await fetch(`http://localhost:5000/patients/${routeId}`, {
           headers: {
             'Authorization': `Bearer ${token}`

@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from './language-context';
+import { getStoredToken } from './auth-utils';
 
 export default function AddPatient() {
   const navigate = useNavigate();
@@ -138,10 +139,10 @@ export default function AddPatient() {
 
   const generateQR = async () => {
     setIsGeneratingQR(true);
-    const token = localStorage.getItem('swasthya_token');
     
     // 1. First, create/sync the patient in the DB if not already done
     try {
+      const token = await getStoredToken();
       // Map frontend gender 'F'/'M' to backend 'Female'/'Male'
       const genderMap = { 'F': 'Female', 'M': 'Male', 'O': 'Other' };
       
