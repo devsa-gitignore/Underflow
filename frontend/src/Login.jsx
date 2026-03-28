@@ -144,12 +144,27 @@ export default function Login() {
 
 function AshaLogin() {
   const [password, setPassword] = useState('');
-  const workerId = 'AW-7782';
+  const workerId = 'AW-1029';
   const navigate = useNavigate();
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    navigate('/dashboard');
+    try {
+      const response = await fetch('http://localhost:5000/auth/dev-token');
+      if (response.ok) {
+        const data = await response.json();
+        localStorage.setItem('swasthya_token', data.token);
+        localStorage.setItem('swasthya_user', JSON.stringify(data));
+        navigate('/dashboard');
+      } else {
+        // Fallback if backend is not started/errored
+        console.warn("Backend not reached for dev-token. Entering demo mode.");
+        navigate('/dashboard');
+      }
+    } catch {
+      console.warn("Connection to backend failed. Entering demo mode.");
+      navigate('/dashboard');
+    }
   };
 
   return (
@@ -158,10 +173,10 @@ function AshaLogin() {
       {/* Worker Profile Card */}
       <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex items-center gap-4">
         <div className="w-12 h-12 bg-teal-100 rounded-full flex items-center justify-center text-teal-700 font-semibold text-lg">
-          AS
+          JN
         </div>
         <div className="flex-1">
-          <p className="font-semibold text-slate-900">Aarti Sharma</p>
+          <p className="font-semibold text-slate-900">Jash Nikombhe</p>
           <p className="text-xs text-slate-500 mt-0.5">ID: {workerId} &bull; Ward 4</p>
         </div>
         <button type="button" className="text-xs font-semibold text-teal-600 hover:text-teal-700 px-3 py-1.5 bg-teal-50 rounded-lg transition-colors">

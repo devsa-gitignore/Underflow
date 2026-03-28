@@ -1,5 +1,7 @@
 import asyncHandler from 'express-async-handler';
 import * as authService from '../services/auth.service.js';
+import User from '../models/User.js';
+import jwt from 'jsonwebtoken';
 
 // @desc    Send OTP to phone
 // @route   POST /auth/send-otp
@@ -37,4 +39,25 @@ export const login = asyncHandler(async (req, res) => {
 export const getMe = asyncHandler(async (req, res) => {
   // User is already attached by protect middleware
   res.status(200).json(req.user);
+});
+
+// @desc    Generate a dev token immediately
+export const devToken = asyncHandler(async (req, res) => {
+  const user = await User.findOne({ name: 'Jash Nikombhe' });
+  if (!user) {
+    res.status(404);
+    throw new Error('Jash Nikombhe not found. Run the seed script first.');
+  }
+  const token = jwt.sign(
+    { id: user._id },
+    process.env.JWT_SECRET || 'your_fallback_secret_key',
+    { expiresIn: '30d' }
+  );
+  res.status(200).json({
+    _id: user._id,
+    name: user.name,
+    phone: user.phone,
+    role: user.role,
+    token, // Send token back
+  });
 });
