@@ -1,12 +1,11 @@
 import express from 'express';
-import { getHeatmapData, getVillageDetails } from '../controllers/admin.controller.js';
+import { protect } from '../middlewares/auth.middleware.js';
+import { getAreaSeverityHeatmap } from '../controllers/admin.controller.js';
 
 const router = express.Router();
 
-// Heatmap data for all villages
-router.get('/heatmap-data', getHeatmapData);
+router.use(protect);
 
-// Detailed breakdown for a specific village
-router.get('/village-details/:village', getVillageDetails);
+router.get('/heatmap', getAreaSeverityHeatmap);
 
 export default router;

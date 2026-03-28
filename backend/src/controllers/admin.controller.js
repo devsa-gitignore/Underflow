@@ -1,146 +1,98 @@
 import asyncHandler from 'express-async-handler';
 import Patient from '../models/Patient.js';
 
-/**
- * @desc    Get aggregated risk severity data by village/area for heatmap
- * @route   GET /admin/heatmap-data
- * @access  Admin only
- */
-export const getHeatmapData = asyncHandler(async (req, res) => {
-    // Aggregate patients by village, calculate risk metrics
-    const villageStats = await Patient.aggregate([
-        {
-            $match: { isDeleted: false }
-        },
-        {
-            $group: {
-                _id: '$village',
-                totalCases: { $sum: 1 },
-                highRiskCount: {
-                    $sum: {
-                        $cond: [{ $eq: ['$currentRiskLevel', 'HIGH'] }, 1, 0]
-                    }
-                },
-                moderateRiskCount: {
-                    $sum: {
-                        $cond: [{ $eq: ['$currentRiskLevel', 'MODERATE'] }, 1, 0]
-                    }
-                },
-                lowRiskCount: {
-                    $sum: {
-                        $cond: [{ $eq: ['$currentRiskLevel', 'LOW'] }, 1, 0]
-                    }
-                }
-            }
-        },
-        {
-            $project: {
-                village: '$_id',
-                _id: 0,
-                totalCases: 1,
-                highRiskCount: 1,
-                moderateRiskCount: 1,
-                lowRiskCount: 1,
-                // Calculate severity percentage (0-1)
-                severityScore: {
-                    $divide: [
-                        {
-                            $add: [
-                                { $multiply: ['$highRiskCount', 3] },
-                                { $multiply: ['$moderateRiskCount', 1] }
-                            ]
-                        },
-                        { $multiply: ['$totalCases', 3] }
-                    ]
-                },
-                highRiskPercentage: {
-                    $multiply: [
-                        { $divide: ['$highRiskCount', '$totalCases'] },
-                        100
-                    ]
-                }
-            }
-        },
-        { $sort: { severityScore: -1 } }
-    ]);
+const riskWeight = {
+  LOW: 1,
+  MEDIUM: 2,
+  HIGH: 3,
+  CRITICAL: 4,
+};
 
-    // Add mock coordinates for villages (in real app, store in DB or geocode)
-    const villageCoordinates = {
-        'Panchgani': { lat: 17.9689, lng: 73.8297 },
-        'Pune': { lat: 18.5204, lng: 73.8567 },
-        'Satara': { lat: 17.6726, lng: 73.9190 },
-        'Karad': { lat: 17.3069, lng: 73.5202 },
-        'Kolhapur': { lat: 16.7050, lng: 73.7421 },
-        'Wai': { lat: 17.5507, lng: 73.6282 },
-        'Baramati': { lat: 18.1660, lng: 74.5827 },
-        'Mahabaleshwar': { lat: 17.9258, lng: 73.6428 },
-        'Lonand': { lat: 17.1833, lng: 74.0500 },
-        'Indapur': { lat: 18.1333, lng: 74.1000 }
+const normalizeArea = (doc) => {
+  const village = (doc.village || '').trim();
+  const region = (doc.region || '').trim();
+  if (village && region) return `${village}, ${region}`;
+  if (village) return village;
+  if (region) return region;
+  return 'Unknown Area';
+};
+
+// @desc    Area-wise severity data for heatmap
+// @route   GET /admin/heatmap
+// @access  Private (Admin)
+export const getAreaSeverityHeatmap = asyncHandler(async (req, res) => {
+  const regionFilter = req.query.region ? String(req.query.region).trim() : null;
+
+  const query = { isDeleted: false };
+  if (regionFilter) {
+    query.region = regionFilter;
+  }
+
+  const patients = await Patient.find(query).select('village region currentRiskLevel').lean();
+
+  const areaMap = new Map();
+
+  for (const patient of patients) {
+    const area = normalizeArea(patient);
+    const level = (patient.currentRiskLevel || 'LOW').toUpperCase();
+    const weight = riskWeight[level] || 1;
+
+    if (!areaMap.has(area)) {
+      areaMap.set(area, {
+        area,
+        totalCases: 0,
+        weightedSeverityTotal: 0,
+        riskBreakdown: {
+          LOW: 0,
+          MEDIUM: 0,
+          HIGH: 0,
+          CRITICAL: 0,
+        },
+      });
+    }
+
+    const bucket = areaMap.get(area);
+    bucket.totalCases += 1;
+    bucket.weightedSeverityTotal += weight;
+
+    if (bucket.riskBreakdown[level] === undefined) {
+      bucket.riskBreakdown[level] = 0;
+    }
+    bucket.riskBreakdown[level] += 1;
+  }
+
+  const areas = Array.from(areaMap.values()).map((item) => {
+    const averageRiskWeight = item.totalCases > 0 ? item.weightedSeverityTotal / item.totalCases : 1;
+    const severityScore = Math.round((averageRiskWeight / 4) * 100);
+
+    return {
+      area: item.area,
+      totalCases: item.totalCases,
+      criticalCases: item.riskBreakdown.CRITICAL,
+      highCases: item.riskBreakdown.HIGH,
+      mediumCases: item.riskBreakdown.MEDIUM,
+      lowCases: item.riskBreakdown.LOW,
+      averageRiskWeight: Number(averageRiskWeight.toFixed(2)),
+      severityScore,
+      riskBreakdown: item.riskBreakdown,
     };
+  });
 
-    // Enrich with coordinates
-    const heatmapData = villageStats.map(stat => {
-        const coords = villageCoordinates[stat.village] || {
-            lat: 17.9 + Math.random() * 2,
-            lng: 73.5 + Math.random() * 2
-        };
-        return {
-            ...stat,
-            coordinates: coords,
-            // Heatmap intensity (0-100)
-            intensity: Math.round(stat.severityScore * 100)
-        };
-    });
+  areas.sort((a, b) => b.severityScore - a.severityScore || b.totalCases - a.totalCases);
 
-    res.status(200).json({
-        success: true,
-        data: heatmapData,
-        summary: {
-            totalVillages: heatmapData.length,
-            totalCases: heatmapData.reduce((sum, v) => sum + v.totalCases, 0),
-            totalHighRisk: heatmapData.reduce((sum, v) => sum + v.highRiskCount, 0),
-            averageSeverity: (
-                heatmapData.reduce((sum, v) => sum + v.severityScore, 0) / heatmapData.length
-            ).toFixed(2)
-        }
-    });
-});
+  const summary = {
+    totalAreas: areas.length,
+    totalCases: areas.reduce((sum, area) => sum + area.totalCases, 0),
+    totalCritical: areas.reduce((sum, area) => sum + area.criticalCases, 0),
+    averageSeverity:
+      areas.length > 0
+        ? Number((areas.reduce((sum, area) => sum + area.severityScore, 0) / areas.length).toFixed(1))
+        : 0,
+  };
 
-/**
- * @desc    Get detailed breakdown for a specific village
- * @route   GET /admin/village-details/:village
- * @access  Admin only
- */
-export const getVillageDetails = asyncHandler(async (req, res) => {
-    const { village } = req.params;
-
-    const details = await Patient.find({ village, isDeleted: false })
-        .select('name age gender currentRiskLevel phoneNumber createdAt')
-        .sort({ currentRiskLevel: -1 });
-
-    const summary = await Patient.aggregate([
-        { $match: { village, isDeleted: false } },
-        {
-            $group: {
-                _id: null,
-                total: { $sum: 1 },
-                highRisk: {
-                    $sum: { $cond: [{ $eq: ['$currentRiskLevel', 'HIGH'] }, 1, 0] }
-                },
-                moderateRisk: {
-                    $sum: { $cond: [{ $eq: ['$currentRiskLevel', 'MODERATE'] }, 1, 0] }
-                },
-                lowRisk: {
-                    $sum: { $cond: [{ $eq: ['$currentRiskLevel', 'LOW'] }, 1, 0] }
-                }
-            }
-        }
-    ]);
-
-    res.status(200).json({
-        success: true,
-        village,
-        summary: summary[0] || { total: 0, highRisk: 0, moderateRisk: 0, lowRisk: 0 },
-        patients: details
-    });
+  res.status(200).json({
+    success: true,
+    summary,
+    data: areas,
+  });
 });
