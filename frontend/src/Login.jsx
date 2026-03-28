@@ -220,7 +220,7 @@ function AdminLogin() {
   const navigate = useNavigate();
   const handleLogin = (e) => {
     e.preventDefault();
-    navigate('/dashboard');
+    navigate('/admin');
   };
 
   return (

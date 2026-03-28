@@ -4,6 +4,7 @@ import {
   login,
   getMe,
   devToken,
+  getWorkers,
 } from '../controllers/auth.controller.js';
 import { protect } from '../middlewares/auth.middleware.js';
 
@@ -13,5 +14,6 @@ router.post('/send-otp', sendOTP);
 router.post('/login', login);
 router.get('/me', protect, getMe);
 router.get('/dev-token', devToken);
+router.get('/workers', getWorkers);
 
 export default router;

@@ -32,6 +32,21 @@ const seedDB = async () => {
       console.log('ASHA worker Jash Nikombhe already exists (updated)');
     }
 
+    // 1.5 Generate 9 more ASHA workers to total 10
+    const extraNames = ['Priya Patel', 'Sunita Devi', 'Meena Kumari', 'Kavita Singh', 'Anjali Desai', 'Neha Gupta', 'Rani Mukerji', 'Ankita Lokhande', 'Swara Bhaskar'];
+    const extraWards = ['Ward 1', 'Ward 2', 'Ward 3', 'Ward 4', 'Ward 5'];
+    
+    await User.deleteMany({ role: 'ASHA', phone: { $ne: '9876543210' } }); // clear old extra workers
+    const additionalWorkers = extraNames.map((name, idx) => ({
+      name,
+      phone: `987650000${idx}`,
+      region: extraWards[Math.floor(Math.random() * extraWards.length)],
+      role: 'ASHA',
+      isVerified: true
+    }));
+    await User.insertMany(additionalWorkers);
+    console.log(`Created 9 extra ASHA workers`);
+
     // 2. Clear existing test patients (Optional, but good for a fresh 10)
     await Patient.deleteMany({ ashaId: asha._id });
 

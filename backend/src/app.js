@@ -3,11 +3,10 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes.js';
 import patientRoutes from './routes/patient.routes.js';
-//import voiceRoutes from './routes/voice.routes.js';
+import voiceRoutes from './routes/voice.routes.js';
 import qrRoutes from './routes/qr.routes.js';
 import communicationRoutes from './routes/communication.routes.js';
 import aiRoutes from './routes/ai.routes.js';
-import alertRoutes from './routes/alert.routes.js';
 import errorMiddleware from './middlewares/error.middleware.js';
 
 dotenv.config();
@@ -25,6 +24,7 @@ app.use('/ai', aiRoutes);
 app.use('/alerts', alertRoutes);
 app.use('/qr', qrRoutes);
 app.use('/comm', communicationRoutes);
+app.use('/voice', voiceRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

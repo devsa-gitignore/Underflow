@@ -74,9 +74,6 @@ export default function Layout() {
           <Link to="/add-patient" className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive('/add-patient') ? 'bg-teal-900/40 text-teal-400' : 'text-slate-400 hover:text-white'}`}>
             <Plus size={18} /> {text.addPatient}
           </Link>
-          <a href="#" className="flex items-center gap-3 px-3 py-2 text-slate-400 hover:text-white rounded-md text-sm font-medium transition-colors">
-            <Baby size={18} /> {text.maternalCare}
-          </a>
           
           <p className="px-3 text-xs font-medium text-slate-500 uppercase tracking-wider mb-2 mt-8">{text.system}</p>
           
