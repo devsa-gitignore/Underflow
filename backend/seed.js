@@ -88,12 +88,58 @@ const seedDB = async () => {
     const inserted = await Patient.insertMany(patientsToInsert);
     console.log(`Successfully inserted ${inserted.length} mock patients for Jash Nikombhe`);
 
+    // 4. Seed Visit History for each patient
+    const Visit = (await import('./src/models/Visit.js')).default;
+    await Visit.deleteMany({ ashaId: asha._id });
+
+    const symptomPool = [
+      ['Mild fatigue', 'Occasional backache'],
+      ['Severe Headaches', 'Swelling in hands/face'],
+      ['Fever', 'Body aches', 'Cough'],
+      ['No symptoms'],
+      ['Low appetite', 'Nausea'],
+      ['Dizziness', 'Blurred vision'],
+    ];
+    const notePool = [
+      'Routine checkup completed. Patient vitals stable. Advised to continue current medication.',
+      'ANC follow-up visit. Fetal development normal. Iron supplementation provided for 30 days.',
+      'Patient reported mild symptoms. BP slightly elevated. Advised rest and low-sodium diet.',
+      'Vaccination administered as per schedule. No adverse reactions observed.',
+      'High-risk monitoring visit. Referred to PHC for further assessment based on vitals.',
+      'Growth monitoring completed. Weight and height within normal range for age.',
+    ];
+    const bpOptions = ['120/80', '130/85', '140/90', '110/70', '160/100', '135/88'];
+
+    const visitsToInsert = [];
+    for (const patient of inserted) {
+      const numVisits = Math.floor(Math.random() * 3) + 1; // 1-3 visits
+      for (let v = 0; v < numVisits; v++) {
+        const daysAgo = Math.floor(Math.random() * 90) + 1;
+        visitsToInsert.push({
+          patientId: patient._id,
+          ashaId: asha._id,
+          symptoms: symptomPool[Math.floor(Math.random() * symptomPool.length)],
+          notes: notePool[Math.floor(Math.random() * notePool.length)],
+          vitals: {
+            temperature: +(97 + Math.random() * 3).toFixed(1),
+            bloodPressure: bpOptions[Math.floor(Math.random() * bpOptions.length)],
+            weight: Math.floor(40 + Math.random() * 40),
+          },
+          riskLevel: patient.currentRiskLevel,
+          visitDate: new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000),
+        });
+      }
+    }
+    const insertedVisits = await Visit.insertMany(visitsToInsert);
+    console.log(`Successfully inserted ${insertedVisits.length} mock visits`);
+
   } catch (error) {
     console.error('Error seeding data:', error);
   } finally {
     await mongoose.disconnect();
     console.log('Disconnected from DB');
   }
+
 };
 
 seedDB();

@@ -5,11 +5,9 @@ import Dashboard from './Dashboard';
 import PatientDirectory from './PatientDirectory';
 import AddPatient from './AddPatient';
 import PatientProfile from './PatientProfile';
-<<<<<<< HEAD
 import TimelinePage from './TimelinePage';
-=======
+import AlertsPage from './AlertsPage';
 import AdminDashboard from './AdminDashboard';
->>>>>>> 4ce5547d56033e2d4e8d88a460f37a70532b3d80
 import Layout from './Layout';
 import { LanguageProvider } from './LanguageProvider';
 import './App.css';
@@ -27,7 +25,8 @@ function App() {
             <Route path="/directory" element={<PatientDirectory />} />
             <Route path="/add-patient" element={<AddPatient />} />
             <Route path="/patient/:id" element={<PatientProfile />} />
-            <Route path="/patient/:id/timeline" element={<TimelinePage />} />
+            <Route path="/patient/:id/pregacare" element={<TimelinePage />} />
+            <Route path="/alerts" element={<AlertsPage />} />
           </Route>
           
           {/* Standalone Route for Admin */}

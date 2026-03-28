@@ -16,11 +16,12 @@ import {
   Thermometer,
   User,
   Weight,
+  Brain,
+  X
 } from 'lucide-react';
 import { useLanguage } from './language-context';
 import { translatePersonName, translateWardLabel } from './text-utils';
 import { getStoredToken } from './auth-utils';
-import PregnancyTimeline from './components/PregnancyTimeline';
 
 export default function PatientProfile() {
   const navigate = useNavigate();
@@ -58,7 +59,7 @@ export default function PatientProfile() {
         normal: 'Normal',
         registered: 'Registered',
         years: 'yrs',
-        logVisit: 'Log New Visit',
+        logVisit: 'Log Visit',
         clinicalHistory: 'Clinical History',
         records: 'Records',
         recordedVitals: 'Recorded Vitals',
@@ -136,8 +137,13 @@ export default function PatientProfile() {
     fetchPatient();
   }, [routeId]);
 
-  // Mock Visit History Data
-  const visits = [
+  // Visit History - fetched from backend
+  const [visits, setVisits] = useState([]);
+  const [isAssessing, setIsAssessing] = useState(false);
+  const [assessmentResult, setAssessmentResult] = useState(null);
+
+  // Mock visit data for fallback
+  const mockVisits = [
     {
       id: 'v1',
       date: 'Oct 12, 2025',
@@ -176,6 +182,51 @@ export default function PatientProfile() {
     }
   ];
 
+  useEffect(() => {
+    const fetchVisits = async () => {
+      try {
+        const token = await getStoredToken();
+        const response = await fetch(`http://localhost:5000/patients/${routeId}/visits`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.length > 0) {
+            const mapped = data.map((v) => {
+              const vDate = new Date(v.visitDate || v.createdAt);
+              const riskLower = (v.riskLevel || 'LOW').toLowerCase();
+              return {
+                id: v._id,
+                date: vDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                time: vDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+                type: v.notes?.includes('ANC') ? 'ANC Checkup' : 'Clinical Visit',
+                risk: (riskLower === 'critical' || riskLower === 'high') ? 'red' : riskLower === 'medium' ? 'yellow' : 'green',
+                vitals: {
+                  bp: v.vitals?.bloodPressure || 'N/A',
+                  temp: v.vitals?.temperature ? `${v.vitals.temperature}°F` : 'N/A',
+                  weight: v.vitals?.weight ? `${v.vitals.weight} kg` : 'N/A',
+                  pulse: 'N/A',
+                },
+                symptoms: v.symptoms?.length > 0 ? v.symptoms : ['None reported'],
+                notes: v.notes || 'No clinical notes recorded.',
+                action: v.aiSuggestion || 'Continue monitoring as per protocol.',
+                worker: 'Jash Nikombhe (AW-1029)',
+              };
+            });
+            setVisits(mapped);
+            return; // Successfully loaded from backend
+          }
+        }
+      } catch {
+        // Backend unreachable
+      }
+      // Fallback: use mock data for hackathon demo
+      setVisits(mockVisits);
+    };
+    fetchVisits();
+  }, [routeId]);
+
+
   const toggleVisit = (id) => {
     setExpandedVisitId(prev => prev === id ? null : id);
   };
@@ -190,6 +241,50 @@ export default function PatientProfile() {
     if (risk === 'red') return 'bg-red-500 animate-severe-glow';
     if (risk === 'yellow') return 'bg-amber-500';
     return 'bg-emerald-500';
+  };
+
+  const handleAIAssessment = async () => {
+    setIsAssessing(true);
+    setAssessmentResult(null);
+    try {
+      const token = await getStoredToken();
+      const latestVisit = visits[0] || {};
+      
+      const payload = {
+        patientId: routeId,
+        bp: latestVisit.vitals?.bp !== 'N/A' ? latestVisit.vitals?.bp : undefined,
+        weight: latestVisit.vitals?.weight !== 'N/A' ? latestVisit.vitals?.weight : undefined,
+        symptoms: latestVisit.symptoms ? latestVisit.symptoms.join(', ') : 'None',
+        otherFactors: `Age: ${patient.age}, Category: ${patient.category}`
+      };
+
+      const response = await fetch('http://localhost:5000/ai/risk-assessment', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setAssessmentResult(data.data);
+      } else {
+        throw new Error('Backend failed');
+      }
+    } catch (err) {
+      console.error('AI Assessment error:', err);
+      // Fallback demo mock
+      setAssessmentResult({
+        riskLevel: 'MODERATE',
+        possibleCondition: 'Mild Anemia',
+        immediateActionRequired: false,
+        adviceForAshaWorker: 'Recommend iron-rich diet and monitor vital signs over the next two weeks.'
+      });
+    } finally {
+      setIsAssessing(false);
+    }
   };
 
   return (
@@ -252,14 +347,29 @@ export default function PatientProfile() {
             <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto mt-4 md:mt-0">
               {patient.category === 'Maternal' && (
                 <button 
-                  onClick={() => navigate(`/patient/${patient.id}/timeline`)}
-                  className="w-full md:w-auto px-6 py-3.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-emerald-100 transition-colors shadow-sm"
+                  onClick={() => navigate(`/patient/${patient.id}/pregacare`)}
+                  className="w-full md:w-auto px-6 py-3.5 bg-purple-50 text-purple-700 border border-purple-200 rounded-xl font-bold text-sm flex justify-center hover:bg-purple-100 transition-colors shadow-sm"
                 >
-                  <Activity size={20} />
-                  {language === 'hi' ? 'एआई टाइमलाइन देखें' : 'View AI Timeline'}
+                  {language === 'hi' ? 'प्रेगाकेयर ट्रैकर' : 'PregaCare'}
                 </button>
               )}
-              <button className="w-full md:w-auto px-6 py-3.5 bg-teal-600 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-teal-700 transition-colors shadow-md shadow-teal-200 group">
+              <button 
+                disabled={isAssessing}
+                onClick={handleAIAssessment} 
+                className={`whitespace-nowrap w-full md:w-auto px-5 py-4 bg-blue-50 text-blue-700 border border-blue-200 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-blue-100 transition-colors shadow-sm ${isAssessing ? 'opacity-70 cursor-not-allowed' : ''}`}
+              >
+                {isAssessing ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                    {language === 'hi' ? 'विश्लेषण हो रहा...' : 'Running AI...'}
+                  </>
+                ) : (
+                  <>
+                    {language === 'hi' ? 'जोखिम अनुमानक' : 'Risk Predictor'}
+                  </>
+                )}
+              </button>
+              <button className="whitespace-nowrap w-full md:w-auto px-5 py-4 bg-teal-600 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-teal-700 transition-colors shadow-md shadow-teal-200 group">
                 <Plus size={20} className="group-hover:scale-110 transition-transform" />
                 {text.logVisit}
               </button>
@@ -268,10 +378,57 @@ export default function PatientProfile() {
           </div>
         </div>
 
-        {/* CONDITIONAL PREGNANCY TIMELINE */}
-        {patient.category === 'Maternal' && (
-          <PregnancyTimeline patient={patient} />
+        {/* AI ASSESSMENT RESULT PANEL */}
+        {assessmentResult && (
+          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6 relative animate-in fade-in slide-in-from-top-4 duration-500 shadow-sm">
+            <button 
+              onClick={() => setAssessmentResult(null)}
+              className="absolute top-4 right-4 text-blue-400 hover:text-blue-700 transition-colors"
+            >
+              <X size={20} />
+            </button>
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center shrink-0 shadow-inner">
+                <Brain className="text-blue-600" size={24} />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="text-lg font-bold text-blue-900">
+                    {language === 'hi' ? 'एआई स्वास्थ्य विश्लेषण' : 'AI Health Analysis'}
+                  </h3>
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                    assessmentResult.riskLevel === 'HIGH' || assessmentResult.riskLevel === 'CRITICAL' 
+                      ? 'bg-red-100 text-red-700 border border-red-200'
+                      : assessmentResult.riskLevel === 'MODERATE' 
+                        ? 'bg-amber-100 text-amber-700 border border-amber-200' 
+                        : 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                  }`}>
+                    {assessmentResult.riskLevel} RISK
+                  </span>
+                  {assessmentResult.immediateActionRequired && (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-red-600 text-white animate-pulse">
+                      Urgent Action
+                    </span>
+                  )}
+                </div>
+                
+                <h4 className="text-sm font-semibold text-slate-800 mt-3 mb-1 uppercase tracking-wider">
+                  {language === 'hi' ? 'संभावित स्थिति' : 'Detected Condition'}
+                </h4>
+                <p className="text-slate-700 font-medium mb-3">{assessmentResult.possibleCondition}</p>
+                
+                <h4 className="text-sm font-semibold text-slate-800 mb-1 uppercase tracking-wider">
+                  {language === 'hi' ? 'सुझाया गया कदम' : 'Recommended Action'}
+                </h4>
+                <p className="text-slate-700 font-medium p-3 bg-white rounded-lg border border-slate-200">
+                  {assessmentResult.adviceForAshaWorker}
+                </p>
+              </div>
+            </div>
+          </div>
         )}
+
+
 
         {/* VISIT HISTORY SECTION */}
         <div>

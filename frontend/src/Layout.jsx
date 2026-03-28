@@ -3,7 +3,7 @@ import { Outlet, Link, useLocation } from 'react-router-dom';
 import { 
   Menu, Bell, CloudOff, Plus, Languages,
   Search, LayoutDashboard, Users, Baby, RefreshCw, 
-  Settings, LogOut 
+  Settings, LogOut, ShieldAlert 
 } from 'lucide-react';
 import { useLanguage } from './language-context';
 
@@ -23,6 +23,7 @@ export default function Layout() {
         system: 'सिस्टम',
         offlineMode: 'ऑफलाइन मोड',
         preferences: 'प्राथमिकताएं',
+        alerts: 'अलर्ट',
         search: 'रजिस्ट्री खोजें...',
         offlineStatus: 'ऑफलाइन कार्यरत',
         syncedStatus: 'सिंक हो गया',
@@ -39,6 +40,7 @@ export default function Layout() {
         system: 'System',
         offlineMode: 'Offline Mode',
         preferences: 'Preferences',
+        alerts: 'Health Alerts',
         search: 'Search registry...',
         offlineStatus: 'Working Offline',
         syncedStatus: 'Synced',
@@ -73,6 +75,9 @@ export default function Layout() {
           </Link>
           <Link to="/add-patient" className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive('/add-patient') ? 'bg-teal-900/40 text-teal-400' : 'text-slate-400 hover:text-white'}`}>
             <Plus size={18} /> {text.addPatient}
+          </Link>
+          <Link to="/alerts" className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive('/alerts') ? 'bg-red-900/40 text-red-400' : 'text-slate-400 hover:text-white'}`}>
+            <ShieldAlert size={18} /> {text.alerts}
           </Link>
           
           <p className="px-3 text-xs font-medium text-slate-500 uppercase tracking-wider mb-2 mt-8">{text.system}</p>
