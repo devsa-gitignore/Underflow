@@ -1,30 +1,79 @@
-import React, { useState } from 'react';
-import { 
-  ArrowLeft, User, MapPin, Phone, Calendar, 
-  Activity, AlertTriangle, Plus, ChevronDown, 
-  ChevronUp, Stethoscope, FileText, Pill, Thermometer,
-  HeartPulse, Weight
+import { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import {
+  Activity,
+  AlertTriangle,
+  ArrowLeft,
+  Calendar,
+  ChevronDown,
+  ChevronUp,
+  FileText,
+  HeartPulse,
+  MapPin,
+  Phone,
+  Pill,
+  Plus,
+  Thermometer,
+  User,
+  Weight,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 
 export default function PatientProfile() {
   const navigate = useNavigate();
+  const { id: routeId } = useParams();
   // State to track which visit in the history list is currently expanded
-  const [expandedVisitId, setExpandedVisitId] = useState(null); // Default all closed
+  const [expandedVisitId, setExpandedVisitId] = useState(null); 
+  const [, setIsLoading] = useState(true);
+  
+  // Dynamic Patient Data 
+  const [patient, setPatient] = useState({
+    id: routeId,
+    firstName: 'Loading',
+    lastName: '...',
+    age: '--',
+    gender: '...',
+    phone: '...',
+    ward: '...',
+    category: 'General',
+    riskStatus: 'green',
+    registrationDate: '...'
+  });
 
-  // Mock Patient Data (This would come from your backend based on the QR scan)
-  const patient = {
-    id: 'SS-882931',
-    firstName: 'Aarti',
-    lastName: 'Sharma',
-    age: 28,
-    gender: 'Female',
-    phone: '+91 98765 43210',
-    ward: 'Ward 4 (Central Block)',
-    category: 'Maternal',
-    riskStatus: 'red', // 'red', 'yellow', 'green'
-    registrationDate: 'Oct 2, 2025'
-  };
+  useEffect(() => {
+    const fetchPatient = async () => {
+      setIsLoading(true);
+      try {
+        const token = localStorage.getItem('swasthya_token');
+        const response = await fetch(`http://localhost:5000/patients/${routeId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (response.ok) {
+          const p = await response.json();
+          const nameParts = p.name.split(' ');
+          setPatient({
+            id: p._id,
+            firstName: nameParts[0],
+            lastName: nameParts.slice(1).join(' ') || '',
+            age: p.age,
+            gender: p.gender,
+            phone: p.phone || 'N/A',
+            ward: p.village,
+            category: p.isPregnant ? 'Maternal' : 'General',
+            riskStatus: p.currentRiskLevel.toLowerCase() === 'critical' || p.currentRiskLevel.toLowerCase() === 'high' ? 'red' : 
+                        p.currentRiskLevel.toLowerCase() === 'medium' ? 'yellow' : 'green',
+            registrationDate: new Date(p.createdAt).toLocaleDateString()
+          });
+        }
+      } catch {
+        console.error("Patient fetch failed.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchPatient();
+  }, [routeId]);
 
   // Mock Visit History Data
   const visits = [
@@ -38,7 +87,7 @@ export default function PatientProfile() {
       symptoms: ['Severe Headaches', 'Swelling in hands/face', 'Blurred vision'],
       notes: "Patient complained of severe throbbing headaches starting last night. Noticeable edema in lower extremities and hands. Blood pressure is critically high indicating severe risk of pre-eclampsia.",
       action: "Immediate referral to District Hospital. Administered first dose of emergency medication as per protocol.",
-      worker: "Anjali D. (AW-7782)"
+      worker: "Jash Nikombhe (AW-1029)"
     },
     {
       id: 'v2',
@@ -50,7 +99,7 @@ export default function PatientProfile() {
       symptoms: ['Mild fatigue', 'Occasional backache'],
       notes: "Routine 7th-month checkup. BP is slightly elevated but below danger threshold. Fetal heart rate is normal. Advised strict rest and low-sodium diet.",
       action: "Provided 30 days supply of Iron and Folic Acid (IFA) tablets. Scheduled follow-up in 14 days.",
-      worker: "Anjali D. (AW-7782)"
+      worker: "Jash Nikombhe (AW-1029)"
     },
     {
       id: 'v3',
@@ -62,7 +111,7 @@ export default function PatientProfile() {
       symptoms: ['None'],
       notes: "Routine 6th-month checkup. Mother and fetus are healthy. No concerning symptoms reported.",
       action: "Administered Tetanus Toxoid (TT) dose 2. General nutritional counseling provided.",
-      worker: "Sunita M. (AW-7711)"
+      worker: "Jash Nikombhe (AW-1029)"
     }
   ];
 

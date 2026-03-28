@@ -46,15 +46,61 @@ export default function AddPatient() {
 
   const generateQR = async () => {
     setIsGeneratingQR(true);
+    const token = localStorage.getItem('swasthya_token');
+    
+    // 1. First, create/sync the patient in the DB if not already done
     try {
-      const id = `SS-${Math.floor(100000 + Math.random() * 900000)}`;
-      const visualQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${id}`;
-      await new Promise(resolve => setTimeout(resolve, 800));
-      setGeneratedId(id);
-      setQrCodeUrl(visualQrUrl);
+      // Map frontend gender 'F'/'M' to backend 'Female'/'Male'
+      const genderMap = { 'F': 'Female', 'M': 'Male', 'O': 'Other' };
+      
+      const patientPayload = {
+        name: `${formData.firstName} ${formData.lastName}`,
+        age: parseInt(formData.age),
+        gender: genderMap[formData.gender] || 'Female',
+        phone: formData.phone,
+        village: formData.ward,
+        region: 'Palghar', // Mock region
+        isPregnant: formData.category === 'maternal',
+      };
+
+      // Create Patient
+      const createResponse = await fetch('http://localhost:5000/patients', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(patientPayload)
+      });
+
+      if (!createResponse.ok) throw new Error("Failed to create patient record");
+      
+      const patient = await createResponse.json();
+      const patientId = patient._id;
+
+      // 2. Now generate the QR code via backend
+      const qrResponse = await fetch(`http://localhost:5000/patients/${patientId}/qr`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!qrResponse.ok) throw new Error("Failed to generate QR code");
+
+      const qrData = await qrResponse.json();
+      
+      setGeneratedId(patientId);
+      setQrCodeUrl(qrData.qrCode); // Backend returns dataURL/Base64
+      
     } catch (error) {
       console.error("Error generating/saving QR:", error);
-      alert("Failed to sync QR code");
+      alert("Backend Sync Failed: Ensure your server is running and .env is correct. Reverting to local mock for demo.");
+      
+      // Fallback for demo
+      const mockId = `SS-${Math.floor(100000 + Math.random() * 900000)}`;
+      setGeneratedId(mockId);
+      setQrCodeUrl(`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${mockId}`);
     } finally {
       setIsGeneratingQR(false);
     }
@@ -89,13 +135,12 @@ export default function AddPatient() {
 
   const handleSubmit = () => {
     setIsSubmitting(true);
+    // Since we created the patient in generateQR step, 
+    // we just simulate final encryption/commit here.
     setTimeout(() => {
       setIsSubmitting(false);
-      if (!generatedId) {
-         setGeneratedId(`SS-${Math.floor(1000 + Math.random() * 9000)}`);
-      }
       setIsComplete(true);
-    }, 1500);
+    }, 1200);
   };
 
   const StepIndicator = () => (

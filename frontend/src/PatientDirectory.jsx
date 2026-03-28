@@ -1,24 +1,59 @@
-import React, { useState } from 'react';
-import { 
-  Search, Filter, AlertTriangle, Baby, Syringe, 
-  ChevronRight, Activity, Clock, MoreVertical 
+import { Search, Filter, AlertTriangle, Baby, Syringe, 
+  ChevronRight, Activity, Clock, MoreVertical, RefreshCw 
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 
 export default function PatientDirectory() {
   const navigate = useNavigate();
   const [activeFilter, setActiveFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [patients, setPatients] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Realistic Hackathon Mock Data
-  const patients = [
-    { id: 'SS-8829', name: 'Aarti Sharma', age: 28, ward: 'Ward 4', risk: 'red', tags: ['maternal', 'high-risk'], issue: 'BP 160/100', lastVisit: '2 days ago' },
-    { id: 'SS-8830', name: 'Pooja Patel', age: 24, ward: 'Ward 4', risk: 'yellow', tags: ['maternal'], issue: 'Missed ANC', lastVisit: '14 days ago' },
-    { id: 'SS-8831', name: 'Rahul Kumar', age: 2, ward: 'Ward 2', risk: 'green', tags: ['pediatric', 'vaccine'], issue: 'Polio Due', lastVisit: '2 months ago' },
-    { id: 'SS-8832', name: 'Sunita Devi', age: 34, ward: 'Ward 5', risk: 'green', tags: ['routine'], issue: 'Standard Check', lastVisit: '1 month ago' },
-    { id: 'SS-8833', name: 'Meena Kumari', age: 22, ward: 'Ward 5', risk: 'yellow', tags: ['maternal'], issue: 'Low Weight Gain', lastVisit: '5 days ago' },
-    { id: 'SS-8834', name: 'Kishan Lal', age: 55, ward: 'Ward 1', risk: 'red', tags: ['chronic'], issue: 'Severe Hypoglycemia', lastVisit: 'Yesterday' },
-  ];
+  useEffect(() => {
+    const fetchPatients = async () => {
+      setIsLoading(true);
+      try {
+        const token = localStorage.getItem('swasthya_token');
+        const response = await fetch('http://localhost:5000/patients/search', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          // Map backend data to our UI format
+          const mapped = data.map(p => ({
+            id: p._id,
+            name: p.name,
+            age: p.age,
+            ward: p.village,
+            risk: p.currentRiskLevel.toLowerCase() === 'critical' ? 'red' : 
+                  p.currentRiskLevel.toLowerCase() === 'high' ? 'red' :
+                  p.currentRiskLevel.toLowerCase() === 'medium' ? 'yellow' : 'green',
+            tags: [p.isPregnant ? 'maternal' : 'general', p.currentRiskLevel.toLowerCase()],
+            issue: p.isPregnant ? 'Pregnancy Tracking' : 'Routine Checkup',
+            lastVisit: new Date(p.updatedAt).toLocaleDateString()
+          }));
+          setPatients(mapped);
+        }
+      } catch {
+        console.error("Backend fetch failed, using fallback mock data.");
+        // Fallback Mock Data
+        setPatients([
+          { id: 'SS-8829', name: 'Aarti Sharma', age: 28, ward: 'Ward 4', risk: 'red', tags: ['maternal', 'high-risk'], issue: 'BP 160/100', lastVisit: '2 days ago' },
+          { id: 'SS-8830', name: 'Pooja Patel', age: 24, ward: 'Ward 4', risk: 'yellow', tags: ['maternal'], issue: 'Missed ANC', lastVisit: '14 days ago' },
+          { id: 'SS-8831', name: 'Rahul Kumar', age: 2, ward: 'Ward 2', risk: 'green', tags: ['pediatric', 'vaccine'], issue: 'Polio Due', lastVisit: '2 months ago' },
+          { id: 'SS-8832', name: 'Sunita Devi', age: 34, ward: 'Ward 5', risk: 'green', tags: ['routine'], issue: 'Standard Check', lastVisit: '1 month ago' },
+        ]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchPatients();
+  }, [activeFilter, searchQuery]);
 
   // The Filtering Logic
   const filteredPatients = patients.filter(p => {
@@ -30,12 +65,6 @@ export default function PatientDirectory() {
     if (activeFilter === 'vaccine') return p.tags.includes('vaccine');
     return true; // 'all'
   });
-
-  const getRiskStyles = (risk) => {
-    if (risk === 'red') return 'bg-red-50 border-red-200 text-red-700';
-    if (risk === 'yellow') return 'bg-amber-50 border-amber-200 text-amber-700';
-    return 'bg-emerald-50 border-emerald-200 text-emerald-700';
-  };
 
   return (
     <div className="p-6 lg:p-10 font-inter">
@@ -117,7 +146,12 @@ export default function PatientDirectory() {
 
           {/* List Rows */}
           <div className="divide-y divide-slate-100">
-            {filteredPatients.length === 0 ? (
+            {isLoading ? (
+               <div className="p-12 text-center">
+                 <RefreshCw size={24} className="text-teal-500 animate-spin mx-auto mb-2" />
+                 <p className="text-sm text-slate-500">Retrieving patient records...</p>
+               </div>
+            ) : filteredPatients.length === 0 ? (
               <div className="p-8 text-center text-slate-500 text-sm font-medium">
                 No patients found matching this criteria.
               </div>
