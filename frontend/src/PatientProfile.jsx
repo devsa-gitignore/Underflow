@@ -22,9 +22,9 @@ export default function PatientProfile() {
   const navigate = useNavigate();
   const { id: routeId } = useParams();
   // State to track which visit in the history list is currently expanded
-  const [expandedVisitId, setExpandedVisitId] = useState(null); 
+  const [expandedVisitId, setExpandedVisitId] = useState(null);
   const [, setIsLoading] = useState(true);
-  
+
   // Dynamic Patient Data 
   const [patient, setPatient] = useState({
     id: routeId,
@@ -61,8 +61,8 @@ export default function PatientProfile() {
             phone: p.phone || 'N/A',
             ward: p.village,
             category: p.isPregnant ? 'Maternal' : 'General',
-            riskStatus: p.currentRiskLevel.toLowerCase() === 'critical' || p.currentRiskLevel.toLowerCase() === 'high' ? 'red' : 
-                        p.currentRiskLevel.toLowerCase() === 'medium' ? 'yellow' : 'green',
+            riskStatus: p.currentRiskLevel.toLowerCase() === 'critical' || p.currentRiskLevel.toLowerCase() === 'high' ? 'red' :
+              p.currentRiskLevel.toLowerCase() === 'medium' ? 'yellow' : 'green',
             registrationDate: new Date(p.createdAt).toLocaleDateString()
           });
         }
@@ -147,11 +147,11 @@ export default function PatientProfile() {
   return (
     <div className="p-6 lg:p-10 font-inter">
       <div className="max-w-4xl mx-auto space-y-6">
-        
+
         {/* Top Navigation Bar */}
         <header className="mb-6 flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <button 
+            <button
               onClick={() => navigate(-1)}
               className="p-2 -ml-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
             >
@@ -166,18 +166,17 @@ export default function PatientProfile() {
 
         {/* PATIENT IDENTITY CARD */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          
+
           <div className="p-6 sm:p-8 flex flex-col md:flex-row gap-6 md:items-center justify-between">
-            
+
             <div className="flex items-center gap-6">
-              <div className={`w-20 h-20 rounded-2xl flex items-center justify-center text-3xl font-black shadow-inner border-2 ${
-                patient.riskStatus === 'red' ? 'bg-red-100 text-red-700 border-red-200' : 
-                patient.riskStatus === 'yellow' ? 'bg-amber-100 text-amber-700 border-amber-200' : 
-                'bg-emerald-100 text-emerald-700 border-emerald-200'
-              }`}>
+              <div className={`w-20 h-20 rounded-2xl flex items-center justify-center text-3xl font-black shadow-inner border-2 ${patient.riskStatus === 'red' ? 'bg-red-100 text-red-700 border-red-200' :
+                  patient.riskStatus === 'yellow' ? 'bg-amber-100 text-amber-700 border-amber-200' :
+                    'bg-emerald-100 text-emerald-700 border-emerald-200'
+                }`}>
                 {patient.firstName[0]}{patient.lastName[0]}
               </div>
-              
+
               <div>
                 <div className="flex items-center gap-3 mb-1">
                   <h2 className="text-2xl font-black text-slate-900 tracking-tight">{patient.firstName} {patient.lastName}</h2>
@@ -186,11 +185,11 @@ export default function PatientProfile() {
                   </span>
                 </div>
                 <p className="text-slate-500 font-medium font-mono text-sm mb-2">{patient.id} &bull; Registered {patient.registrationDate}</p>
-                
+
                 <div className="flex flex-wrap gap-x-6 gap-y-2 mt-3 text-sm font-medium text-slate-600">
-                  <span className="flex items-center gap-1.5"><User size={16} className="text-slate-400"/> {patient.age} yrs, {patient.gender}</span>
-                  <span className="flex items-center gap-1.5"><MapPin size={16} className="text-slate-400"/> {patient.ward}</span>
-                  <span className="flex items-center gap-1.5"><Phone size={16} className="text-slate-400"/> {patient.phone}</span>
+                  <span className="flex items-center gap-1.5"><User size={16} className="text-slate-400" /> {patient.age} yrs, {patient.gender}</span>
+                  <span className="flex items-center gap-1.5"><MapPin size={16} className="text-slate-400" /> {patient.ward}</span>
+                  <span className="flex items-center gap-1.5"><Phone size={16} className="text-slate-400" /> {patient.phone}</span>
                 </div>
               </div>
             </div>
@@ -198,12 +197,12 @@ export default function PatientProfile() {
             {/* Actions - Mobile friendly */}
             <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto mt-4 md:mt-0">
               {patient.category === 'Maternal' && (
-                <button 
+                <button
                   onClick={() => navigate(`/patient/${patient.id}/timeline`)}
                   className="w-full md:w-auto px-6 py-3.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-emerald-100 transition-colors shadow-sm"
                 >
                   <Activity size={20} />
-                  View AI Timeline
+                  Pregnancy Timeline
                 </button>
               )}
               <button className="w-full md:w-auto px-6 py-3.5 bg-teal-600 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-teal-700 transition-colors shadow-md shadow-teal-200 group">
@@ -227,12 +226,12 @@ export default function PatientProfile() {
           <div className="space-y-4">
             {visits.map((visit) => {
               const isExpanded = expandedVisitId === visit.id;
-              
+
               return (
                 <div key={visit.id} className={`bg-white rounded-xl border transition-all duration-300 overflow-hidden ${isExpanded ? 'border-slate-300 shadow-md' : 'border-slate-200 shadow-sm hover:border-slate-300'}`}>
-                  
+
                   {/* ACCORDION HEADER (Clickable) */}
-                  <div 
+                  <div
                     onClick={() => toggleVisit(visit.id)}
                     className="w-full px-6 py-5 flex items-center justify-between bg-white cursor-pointer hover:bg-slate-50/50"
                   >
@@ -251,25 +250,25 @@ export default function PatientProfile() {
                   {/* ACCORDION BODY (Expanded Content) */}
                   <div className={`transition-all duration-300 ease-in-out origin-top ${isExpanded ? 'max-h-[1000px] opacity-100 border-t border-slate-100' : 'max-h-0 opacity-0 pointer-events-none'}`}>
                     <div className="p-6 bg-slate-50/50">
-                      
+
                       {/* Grid for Vitals */}
                       <div className="mb-6">
-                        <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-1.5"><Activity size={14}/> Recorded Vitals</h4>
+                        <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-1.5"><Activity size={14} /> Recorded Vitals</h4>
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                           <div className="bg-white border border-slate-200 p-3 rounded-lg">
-                            <p className="text-xs text-slate-500 font-medium mb-1 flex items-center gap-1"><HeartPulse size={12}/> Blood Pressure</p>
+                            <p className="text-xs text-slate-500 font-medium mb-1 flex items-center gap-1"><HeartPulse size={12} /> Blood Pressure</p>
                             <p className={`font-bold text-lg ${visit.vitals.bp === '160/100' ? 'text-red-600' : 'text-slate-800'}`}>{visit.vitals.bp}</p>
                           </div>
                           <div className="bg-white border border-slate-200 p-3 rounded-lg">
-                            <p className="text-xs text-slate-500 font-medium mb-1 flex items-center gap-1"><Thermometer size={12}/> Temperature</p>
+                            <p className="text-xs text-slate-500 font-medium mb-1 flex items-center gap-1"><Thermometer size={12} /> Temperature</p>
                             <p className="font-bold text-lg text-slate-800">{visit.vitals.temp}</p>
                           </div>
                           <div className="bg-white border border-slate-200 p-3 rounded-lg">
-                            <p className="text-xs text-slate-500 font-medium mb-1 flex items-center gap-1"><Weight size={12}/> Weight</p>
+                            <p className="text-xs text-slate-500 font-medium mb-1 flex items-center gap-1"><Weight size={12} /> Weight</p>
                             <p className="font-bold text-lg text-slate-800">{visit.vitals.weight}</p>
                           </div>
                           <div className="bg-white border border-slate-200 p-3 rounded-lg">
-                            <p className="text-xs text-slate-500 font-medium mb-1 flex items-center gap-1"><Activity size={12}/> Pulse</p>
+                            <p className="text-xs text-slate-500 font-medium mb-1 flex items-center gap-1"><Activity size={12} /> Pulse</p>
                             <p className="font-bold text-lg text-slate-800">{visit.vitals.pulse}</p>
                           </div>
                         </div>
@@ -277,10 +276,10 @@ export default function PatientProfile() {
 
                       {/* Two column layout for Symptoms and Notes on larger screens */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        
+
                         {/* Symptoms List */}
                         <div>
-                          <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-1.5"><AlertTriangle size={14}/> Symptoms Noted</h4>
+                          <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-1.5"><AlertTriangle size={14} /> Symptoms Noted</h4>
                           <div className="flex flex-wrap gap-2">
                             {visit.symptoms.map((sym, i) => (
                               <span key={i} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 text-sm font-medium rounded-md shadow-sm">
@@ -292,7 +291,7 @@ export default function PatientProfile() {
 
                         {/* Action Taken */}
                         <div>
-                          <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-1.5"><Pill size={14}/> Action / Prescription</h4>
+                          <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-1.5"><Pill size={14} /> Action / Prescription</h4>
                           <div className="bg-white border border-slate-200 p-4 rounded-lg text-sm text-slate-700 font-medium leading-relaxed">
                             {visit.action}
                           </div>
@@ -302,7 +301,7 @@ export default function PatientProfile() {
 
                       {/* Full width Clinical Notes */}
                       <div className="mt-6 pt-6 border-t border-slate-200">
-                        <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-1.5"><FileText size={14}/> Clinical Voice Notes</h4>
+                        <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-1.5"><FileText size={14} /> Clinical Voice Notes</h4>
                         <p className="text-sm text-slate-600 leading-relaxed font-medium bg-white p-4 rounded-lg border border-slate-200 italic">
                           "{visit.notes}"
                         </p>
