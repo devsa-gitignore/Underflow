@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import bcrypt from 'bcryptjs';
+import { ROLES } from '../config/constants.js';
 
 const userSchema = new mongoose.Schema(
   {
@@ -7,7 +7,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Please provide a name'],
     },
-    phoneNumber: {
+    phone: {
       type: String,
       required: [true, 'Please provide a phone number'],
       unique: true,
@@ -15,12 +15,12 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['asha', 'admin'],
-      default: 'asha',
+      enum: Object.values(ROLES),
+      default: ROLES.ASHA,
     },
-    village: {
+    region: {
       type: String,
-      required: [true, 'Please provide a village'],
+      required: [true, 'Please provide a region'],
     },
     otp: {
       type: String,
@@ -40,8 +40,6 @@ const userSchema = new mongoose.Schema(
 
 // Method to verify OTP
 userSchema.methods.compareOTP = async function (enteredOtp) {
-  // If we hash OTPs, we should use bcrypt. Compare directly if it's plaintext.
-  // For safety, hashing is better, but maybe overkill for OTPs that expire in 5 mins.
   return enteredOtp === this.otp;
 };
 

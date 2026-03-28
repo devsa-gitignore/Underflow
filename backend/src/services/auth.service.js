@@ -8,18 +8,18 @@ const generateToken = (id) => {
   });
 };
 
-export const sendOTP = async (phoneNumber) => {
+export const sendOTP = async (phone) => {
   // Find or create user? (Hackathon ease)
   // Let's check if the ASHA user exists
-  let user = await User.findOne({ phoneNumber });
+  let user = await User.findOne({ phone });
   
   if (!user && process.env.NODE_ENV === 'development') {
-    console.log(`[AUTH DEBUG] Auto-creating ASHA worker for phone number: ${phoneNumber} (Development mode)`);
+    console.log(`[AUTH DEBUG] Auto-creating ASHA worker for phone number: ${phone} (Development mode)`);
     user = await User.create({
       name: 'Test ASHA Worker',
-      phoneNumber,
-      village: 'Development Village',
-      role: 'asha'
+      phone,
+      region: 'Development Region',
+      role: 'ASHA'
     });
   }
 
@@ -36,13 +36,13 @@ export const sendOTP = async (phoneNumber) => {
 
   // In real implementation, send via Twilio here
   // For now, return it (to help testing on postman)
-  console.log(`[OTP DEBUG] Sent OTP ${otp} to ${phoneNumber}`);
+  console.log(`[OTP DEBUG] Sent OTP ${otp} to ${phone}`);
   return { otp, message: 'OTP sent to mobile number' };
 };
 
-export const loginWithOTP = async (phoneNumber, otp) => {
+export const loginWithOTP = async (phone, otp) => {
   const user = await User.findOne({
-    phoneNumber,
+    phone,
     otp,
     otpExpires: { $gt: Date.now() },
   });
@@ -62,9 +62,9 @@ export const loginWithOTP = async (phoneNumber, otp) => {
   return {
     _id: user._id,
     name: user.name,
-    phoneNumber: user.phoneNumber,
+    phone: user.phone,
     role: user.role,
-    village: user.village,
+    region: user.region,
     token,
   };
 };

@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes.js';
 import patientRoutes from './routes/patient.routes.js';
+import voiceRoutes from './routes/voice.routes.js';
 import errorMiddleware from './middlewares/error.middleware.js';
 
 dotenv.config();
@@ -15,6 +16,7 @@ app.use(express.json());
 // Routes
 app.use('/auth', authRoutes);
 app.use('/patients', patientRoutes);
+app.use('/voice', voiceRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

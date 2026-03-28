@@ -1,17 +1,32 @@
 export const ROLES = {
-  ASHA: 'asha',
-  ADMIN: 'admin'
+  ASHA: 'ASHA',
+  ADMIN: 'ADMIN'
 };
 
 export const RISK_LEVELS = {
-  LOW: 'low',
-  MODERATE: 'moderate',
-  HIGH: 'high',
-  CRITICAL: 'critical'
+  LOW: 'LOW',
+  MEDIUM: 'MEDIUM',
+  HIGH: 'HIGH',
+  CRITICAL: 'CRITICAL'
 };
 
 export const GENDER = {
-  MALE: 'male',
-  FEMALE: 'female',
-  OTHER: 'other'
+  MALE: 'Male',
+  FEMALE: 'Female',
+  OTHER: 'Other'
+};
+
+export const SEVERITY = {
+  LOW: 'LOW',
+  MEDIUM: 'MEDIUM',
+  HIGH: 'HIGH'
+};
+
+export const STATUS = {
+  ACTIVE: 'ACTIVE',
+  RESOLVED: 'RESOLVED',
+  ESCALATED: 'ESCALATED',
+  PENDING: 'PENDING',
+  COMPLETED: 'COMPLETED',
+  MISSED: 'MISSED'
 };

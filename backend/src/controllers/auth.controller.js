@@ -5,14 +5,14 @@ import * as authService from '../services/auth.service.js';
 // @route   POST /auth/send-otp
 // @access  Public
 export const sendOTP = asyncHandler(async (req, res) => {
-  const { phoneNumber } = req.body;
+  const { phone } = req.body;
 
-  if (!phoneNumber) {
+  if (!phone) {
     res.status(400);
     throw new Error('Please provide a phone number');
   }
 
-  const result = await authService.sendOTP(phoneNumber);
+  const result = await authService.sendOTP(phone);
   res.status(200).json(result);
 });
 
@@ -20,14 +20,14 @@ export const sendOTP = asyncHandler(async (req, res) => {
 // @route   POST /auth/login
 // @access  Public
 export const login = asyncHandler(async (req, res) => {
-  const { phoneNumber, otp } = req.body;
+  const { phone, otp } = req.body;
 
-  if (!phoneNumber || !otp) {
+  if (!phone || !otp) {
     res.status(400);
     throw new Error('Please provide phone number and OTP');
   }
 
-  const result = await authService.loginWithOTP(phoneNumber, otp);
+  const result = await authService.loginWithOTP(phone, otp);
   res.status(200).json(result);
 });
 

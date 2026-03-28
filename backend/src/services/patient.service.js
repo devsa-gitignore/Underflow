@@ -25,13 +25,16 @@ export const getPatientById = async (id) => {
   return patient;
 };
 
-export const searchPatients = async (query, village) => {
+export const searchPatients = async (query, village, region) => {
   let findQuery = { isDeleted: false };
   if (query) {
     findQuery.name = { $regex: query, $options: 'i' };
   }
   if (village) {
     findQuery.village = { $regex: village, $options: 'i' };
+  }
+  if (region) {
+    findQuery.region = { $regex: region, $options: 'i' };
   }
   const patients = await Patient.find(findQuery);
   return patients;

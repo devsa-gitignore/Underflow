@@ -31,8 +31,8 @@ export const bulkRegister = asyncHandler(async (req, res) => {
 // @route   GET /patients/search
 // @access  Private
 export const searchPatients = asyncHandler(async (req, res) => {
-  const { q, village } = req.query;
-  const patients = await patientService.searchPatients(q, village);
+  const { q, village, region } = req.query;
+  const patients = await patientService.searchPatients(q, village, region);
   res.status(200).json(patients);
 });
 
