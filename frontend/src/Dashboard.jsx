@@ -4,9 +4,11 @@ import {
   Search, LayoutDashboard, Users, Baby, RefreshCw, 
   Settings, LogOut, ChevronRight, AlertCircle, Activity, CheckCircle2 
 } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import MagicBento from './MagicBento';
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [isOffline, setIsOffline] = useState(false);
 
   // Mock Triage Data
@@ -49,9 +51,9 @@ export default function Dashboard() {
                 <h2 className="text-2xl font-semibold text-slate-900 mb-1">Overview</h2>
                 <p className="text-sm text-slate-500">Your prioritized operational tasks for today.</p>
               </div>
-              <button className="sm:hidden flex items-center justify-center w-10 h-10 bg-teal-600 text-white rounded-full shadow-md">
+              <Link to="/add-patient" className="sm:hidden flex items-center justify-center w-10 h-10 bg-teal-600 text-white rounded-full shadow-md">
                 <Plus size={20} />
-              </button>
+              </Link>
             </div>
 
             {/* Realistic Clinical Alert Banner */}
@@ -145,6 +147,7 @@ export default function Dashboard() {
                   {patients.map((patient) => (
                     <div 
                       key={patient.id}
+                      onClick={() => navigate(`/patient/${patient.id}`)}
                       className={`p-4 rounded-xl transition-all cursor-pointer ${getCardStyles(patient.risk)}`}
                     >
                       {patient.risk === 'red' && <div className="absolute top-0 right-0 w-8 h-8 bg-red-50 flex items-center justify-center rounded-bl-xl"><AlertCircle size={14} className="text-red-500" /></div>}
@@ -197,14 +200,14 @@ export default function Dashboard() {
                 </div>
 
                 <MagicBento glowColor="203, 213, 225" className="bg-white p-1">
-                  <button className="w-full flex items-center justify-between px-4 py-3 rounded-lg hover:bg-slate-50 transition-colors text-left group border border-transparent">
+                  <Link to="/add-patient" className="w-full flex items-center justify-between px-4 py-3 rounded-lg hover:bg-slate-50 transition-colors text-left group border border-transparent">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 bg-teal-50 rounded-lg flex items-center justify-center shadow-sm border border-teal-100/50">
                         <Plus size={16} className="text-teal-600" />
                       </div>
                       <span className="text-sm font-medium text-slate-700">Register New Patient</span>
                     </div>
-                  </button>
+                  </Link>
                   <div className="h-px w-full bg-slate-100" />
                   <button className="w-full flex items-center justify-between px-4 py-3 rounded-lg hover:bg-slate-50 transition-colors text-left group border border-transparent">
                     <div className="flex items-center gap-3">

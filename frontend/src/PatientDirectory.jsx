@@ -3,8 +3,10 @@ import {
   Search, Filter, AlertTriangle, Baby, Syringe, 
   ChevronRight, Activity, Clock, MoreVertical 
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export default function PatientDirectory() {
+  const navigate = useNavigate();
   const [activeFilter, setActiveFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -121,7 +123,11 @@ export default function PatientDirectory() {
               </div>
             ) : (
               filteredPatients.map((patient) => (
-                <div key={patient.id} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-slate-50 transition-colors group cursor-pointer">
+                <div 
+                  key={patient.id} 
+                  onClick={() => navigate(`/patient/${patient.id}`)}
+                  className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-slate-50 transition-colors group cursor-pointer"
+                >
                   
                   {/* 1. Profile Column */}
                   <div className="col-span-4 flex items-center gap-3 pl-2">

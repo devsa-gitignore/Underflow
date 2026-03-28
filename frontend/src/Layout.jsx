@@ -36,6 +36,9 @@ export default function Layout() {
           <Link to="/directory" className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive('/directory') ? 'bg-teal-900/40 text-teal-400' : 'text-slate-400 hover:text-white'}`}>
             <Users size={18} /> Patient Directory
           </Link>
+          <Link to="/add-patient" className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive('/add-patient') ? 'bg-teal-900/40 text-teal-400' : 'text-slate-400 hover:text-white'}`}>
+            <Plus size={18} /> Add Patient
+          </Link>
           <a href="#" className="flex items-center gap-3 px-3 py-2 text-slate-400 hover:text-white rounded-md text-sm font-medium transition-colors">
             <Baby size={18} /> Maternal Care
           </a>
@@ -100,9 +103,9 @@ export default function Layout() {
               <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
             </button>
 
-            <button className="hidden sm:flex items-center gap-1.5 bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-teal-700 transition-colors ml-2">
+            <Link to="/add-patient" className="hidden sm:flex items-center gap-1.5 bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-teal-700 transition-colors ml-2">
               <Plus size={16} /> New Visit
-            </button>
+            </Link>
           </div>
         </header>
 
