@@ -15,6 +15,7 @@ import {
   addVitals,
 } from '../controllers/visit.controller.js';
 import { protect } from '../middlewares/auth.middleware.js';
+import { getPatientComplianceHistory } from '../controllers/compliance.controller.js';
 
 const router = express.Router();
 
@@ -28,10 +29,14 @@ router.patch('/:id', updatePatient);
 router.delete('/:id', deletePatient);
 router.post('/:id/qr', generateQR);
 
+
 // Visit Routes (Nested)
 router.post('/:id/visits', createVisit);
 router.get('/:id/visits', getVisits);
 router.get('/:id/visits/latest', getLatestVisit);
 router.post('/:id/vitals', addVitals);
+
+// Compliance Routes (Nested)
+router.get('/:id/compliance', getPatientComplianceHistory);
 
 export default router;

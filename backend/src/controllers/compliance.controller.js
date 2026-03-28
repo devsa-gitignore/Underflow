@@ -1,0 +1,54 @@
+import asyncHandler from 'express-async-handler';
+import * as complianceService from '../services/compliance.service.js';
+
+// @desc    Log a new compliance entry (Completed or Missed)
+// @route   POST /compliance
+// @access  Private (ASHA Worker usually)
+export const logCompliance = asyncHandler(async (req, res) => {
+  const { patientId, type, status, notes, date } = req.body;
+  
+  if (!patientId || !type || !status) {
+    res.status(400);
+    throw new Error('Please provide patientId, type, and status');
+  }
+
+  // Use the authenticated user's ID and Role
+  const ashaId = req.user ? req.user._id : req.body.ashaId;
+  const role = req.user ? req.user.role : 'ASHA';
+
+  const compliance = await complianceService.logCompliance({
+    patientId,
+    ashaId,
+    type,
+    status,
+    notes,
+    date
+  }, role);
+
+  res.status(201).json({ success: true, compliance });
+});
+
+// @desc    Get all compliance history for a specific patient
+// @route   GET /patients/:id/compliance
+// @access  Private
+export const getPatientComplianceHistory = asyncHandler(async (req, res) => {
+  const patientId = req.params.id;
+  
+  const history = await complianceService.getPatientComplianceHistory(patientId);
+
+  res.status(200).json({ success: true, count: history.length, history });
+});
+
+// @desc    Get all missed compliance actions
+// @route   GET /compliance/missed
+// @access  Private
+export const getMissedActions = asyncHandler(async (req, res) => {
+  // Option: limit to the currently logged in ASHA worker
+  // const ashaId = req.user && req.user.role === 'ASHA' ? req.user._id : null;
+  // Currently we will just fetch all globally, or use a query parameter:
+  const ashaId = req.query.ashaId || null;
+
+  const missedActions = await complianceService.detectMissedActions(ashaId);
+
+  res.status(200).json({ success: true, count: missedActions.length, missedActions });
+});

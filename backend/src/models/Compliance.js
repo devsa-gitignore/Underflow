@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { STATUS } from '../config/constants.js';
+import { STATUS, COMPLIANCE_TYPES } from '../config/constants.js';
 
 const complianceSchema = new mongoose.Schema(
   {
@@ -8,9 +8,14 @@ const complianceSchema = new mongoose.Schema(
       ref: 'Patient',
       required: true,
     },
+    ashaId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: false,
+    },
     type: {
       type: String,
-      enum: ['VACCINATION', 'CHECKUP'],
+      enum: Object.values(COMPLIANCE_TYPES),
       required: true,
     },
     status: {
