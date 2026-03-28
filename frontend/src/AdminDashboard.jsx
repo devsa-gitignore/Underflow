@@ -198,7 +198,7 @@ export default function AdminDashboard() {
                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                   <div className="flex justify-between items-end mb-6">
                     <div>
-                      <h2 className="text-2xl font-bold text-slate-900 mb-1">District Overview: North Zone</h2>
+                      <h2 className="text-2xl font-bold text-slate-900 mb-1">District Overview</h2>
                       <p className="text-sm text-slate-500 font-medium">Real-time aggregated data from 42 active ASHA workers.</p>
                     </div>
                     <div className="text-sm font-semibold text-slate-500 flex items-center gap-2">
@@ -267,7 +267,7 @@ export default function AdminDashboard() {
                             <tr className="bg-white text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
                               <th className="px-6 py-4 font-semibold">Location</th>
                               <th className="px-6 py-4 font-semibold">Total Cases</th>
-                              <th className="px-6 py-4 font-semibold text-red-600">Critical (Red)</th>
+                              <th className="px-6 py-4 font-semibold text-red-600">Critical</th>
                               <th className="px-6 py-4 font-semibold">ASHA Assigned</th>
                             </tr>
                           </thead>
