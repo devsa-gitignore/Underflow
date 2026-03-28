@@ -1,56 +1,55 @@
-import { Worker } from 'bullmq';
-import { translateAudio } from '../services/voice.service.js';
-import translationStore from '../store/translationStore.js';
+let translationWorker = null;
 
-const redisConnection = {
-  host: '127.0.0.1',
-  port: 6379,
-};
+try {
+  const { Worker } = await import('bullmq');
+  const { translateAudio } = await import('../services/voice.service.js');
+  const { default: translationStore } = await import('../store/translationStore.js');
 
-console.log('👷‍♂️ Translation Worker starting...');
+  const redisConnection = {
+    host: '127.0.0.1',
+    port: 6379,
+  };
 
-// Create a worker that processes jobs from the 'translation' queue
-const translationWorker = new Worker(
-  'translation',
-  async (job) => {
-    const { jobId, filePath, originalname } = job.data;
-    
-    // Update store state to 'processing'
-    if (translationStore[jobId]) {
-      translationStore[jobId].status = 'processing';
+  console.log('Translation Worker starting...');
+
+  translationWorker = new Worker(
+    'translation',
+    async (job) => {
+      const { jobId, filePath, originalname } = job.data;
+
+      if (translationStore[jobId]) {
+        translationStore[jobId].status = 'processing';
+      }
+
+      const result = await translateAudio({ path: filePath, originalname });
+      return { jobId, translatedText: result.translatedText };
+    },
+    {
+      connection: redisConnection,
     }
+  );
 
-    // Call the audio translation service using the file path provided by multer
-    const result = await translateAudio({ path: filePath, originalname });
+  translationWorker.on('completed', (job, returnvalue) => {
+    const { jobId, translatedText } = returnvalue;
+    console.log(`Translation job ${job.id} completed. JobId: ${jobId}`);
 
-    return { jobId, translatedText: result.translatedText };
-  },
-  { 
-    connection: redisConnection 
-  }
-);
+    if (translationStore[jobId]) {
+      translationStore[jobId].status = 'completed';
+      translationStore[jobId].translatedText = translatedText;
+    }
+  });
 
-// Listen to worker events to update our in-memory store
-translationWorker.on('completed', (job, returnvalue) => {
-  const { jobId, translatedText } = returnvalue;
-  console.log(`✅ Job ${job.id} completed. JobId: ${jobId}`);
+  translationWorker.on('failed', (job, err) => {
+    const jobId = job?.data?.jobId;
+    console.error(`Translation job ${job?.id} failed. Error: ${err.message}`);
 
-  // Update store to 'completed' and add the result text
-  if (translationStore[jobId]) {
-    translationStore[jobId].status = 'completed';
-    translationStore[jobId].translatedText = translatedText;
-  }
-});
-
-translationWorker.on('failed', (job, err) => {
-  const jobId = job.data.jobId;
-  console.error(`❌ Job ${job.id} failed. Error: ${err.message}`);
-
-  // Update store to 'failed'
-  if (translationStore[jobId]) {
-    translationStore[jobId].status = 'failed';
-    translationStore[jobId].error = err.message;
-  }
-});
+    if (jobId && translationStore[jobId]) {
+      translationStore[jobId].status = 'failed';
+      translationStore[jobId].error = err.message;
+    }
+  });
+} catch {
+  console.warn('BullMQ worker not started. Background translation is disabled.');
+}
 
 export default translationWorker;
