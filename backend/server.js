@@ -1,6 +1,7 @@
 import connectDB from './src/config/db.js';
 import app from './src/app.js';
 import dotenv from 'dotenv';
+import './src/workers/translation.worker.js'; // Initialize the async worker
 
 dotenv.config();
 
