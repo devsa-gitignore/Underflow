@@ -199,3 +199,20 @@ export const translateAudio = async (file) => {
     cleanupAudioFile(audioPath);
   }
 };
+
+// ─────────────────────────────────────────────────────────────────
+// Service 4: Translate Text Async (Simulation)
+// Since Whisper translates audio, this simulates a text translation
+// API (e.g. Gemini or separate translation service).
+// ─────────────────────────────────────────────────────────────────
+export const translateText = async (text) => {
+  if (!text) throw new Error('No text provided for translation.');
+  
+  // Simulate API delay (2 seconds)
+  await new Promise(resolve => setTimeout(resolve, 2000));
+  
+  return {
+    translatedText: `${text} (Translated to English)`,
+    note: 'Simulated text translation output.'
+  };
+};

@@ -5,6 +5,7 @@ import {
   uploadAudio,
   transcribeAudio,
   translateAudio,
+  getTranslationStatus,
 } from '../controllers/voice.controller.js';
 
 const router = express.Router();
@@ -16,6 +17,9 @@ router.use(protect);
 // and attaches the file to req.file
 router.post('/upload', multerUpload, uploadAudio);
 router.post('/transcribe', multerUpload, transcribeAudio);
+
+// Async audio translation (form-data: audio file)
 router.post('/translate', multerUpload, translateAudio);
+router.get('/translate/:jobId', getTranslationStatus);
 
 export default router;
