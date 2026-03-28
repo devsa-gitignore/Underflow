@@ -35,6 +35,9 @@ const patientSchema = new mongoose.Schema(
       enum: Object.values(RISK_LEVELS),
       default: RISK_LEVELS.LOW,
     },
+    qrCode: {
+      type: String, // Base64 or URL
+    },
     isDeleted: {
       type: Boolean,
       default: false,
@@ -46,9 +49,8 @@ const patientSchema = new mongoose.Schema(
 );
 
 // Filter out deleted patients in search unless specified
-patientSchema.pre(/^find/, function (next) {
+patientSchema.pre(/^find/, function () {
   this.find({ isDeleted: { $ne: true } });
-  next();
 });
 
 const Patient = mongoose.model('Patient', patientSchema);

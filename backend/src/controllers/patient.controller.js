@@ -59,3 +59,15 @@ export const deletePatient = asyncHandler(async (req, res) => {
   const result = await patientService.softDeletePatient(req.params.id);
   res.status(200).json(result);
 });
+
+// @desc    Generate QR code for a patient
+// @route   POST /patients/:id/qr
+// @access  Private
+export const generateQR = asyncHandler(async (req, res) => {
+  const patient = await patientService.generatePatientQR(req.params.id);
+  res.status(200).json({
+    success: true,
+    qrCode: patient.qrCode,
+    message: 'QR code generated and saved successfully',
+  });
+});
