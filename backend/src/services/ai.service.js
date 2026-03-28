@@ -8,7 +8,7 @@ export const evaluateRisk = async ({ bp, weight, bloodSugar, symptoms, otherFact
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     // Use 2.5 flash model for fast inference
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
 
     const prompt = `
 You are an expert maternal healthcare AI designed to assist ASHA workers in rural areas. 
@@ -47,7 +47,7 @@ export const generateTimeline = async ({ age, lmp, conditions, currentMonth }) =
     }
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
 
     // Ensure currentMonth is an integer for logical comparisons in the prompt
     const month = parseInt(currentMonth) || 1;
@@ -110,7 +110,7 @@ export const detectEpidemic = async (aggregatedDataText) => {
     }
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
 
     const prompt = `
 You are a public health AI analyzing aggregated checkup data for a rural region over the last 7 days.

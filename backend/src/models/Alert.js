@@ -6,7 +6,6 @@ const alertSchema = new mongoose.Schema(
     patientId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Patient',
-      required: true,
     },
     ashaId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -15,7 +14,6 @@ const alertSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ['HIGH_RISK', 'MISSED_FOLLOWUP', 'MALNUTRITION'],
       required: true,
     },
     message: {

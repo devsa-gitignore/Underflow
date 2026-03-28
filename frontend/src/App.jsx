@@ -5,6 +5,7 @@ import Dashboard from './Dashboard';
 import PatientDirectory from './PatientDirectory';
 import AddPatient from './AddPatient';
 import PatientProfile from './PatientProfile';
+import TimelinePage from './TimelinePage';
 import Layout from './Layout';
 import { LanguageProvider } from './LanguageProvider';
 import './App.css';
@@ -22,6 +23,7 @@ function App() {
             <Route path="/directory" element={<PatientDirectory />} />
             <Route path="/add-patient" element={<AddPatient />} />
             <Route path="/patient/:id" element={<PatientProfile />} />
+            <Route path="/patient/:id/timeline" element={<TimelinePage />} />
           </Route>
         </Routes>
       </BrowserRouter>

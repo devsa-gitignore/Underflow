@@ -8,7 +8,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import jsQR from 'jsqr';
 import MagicBento from './MagicBento';
 import { useLanguage } from './language-context';
-import AdminSeverityMap from './components/AdminSeverityMap';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -271,9 +270,6 @@ export default function Dashboard() {
 
             </div>
 
-            {/* Region Severity Heatmap */}
-            <AdminSeverityMap />
-
             {/* TWO COLUMN LAYOUT: Triage Stack + Action Pane */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               
@@ -379,14 +375,7 @@ export default function Dashboard() {
                     </div>
                   </Link>
                   <div className="h-px w-full bg-slate-100" />
-                  <button className="w-full flex items-center justify-between px-4 py-3 rounded-lg hover:bg-slate-50 transition-colors text-left group border border-transparent">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-purple-50 rounded-lg flex items-center justify-center shadow-sm border border-purple-100/50">
-                        <Baby size={16} className="text-purple-600" />
-                      </div>
-                      <span className="text-sm font-medium text-slate-700">{text.logMaternal}</span>
-                    </div>
-                  </button>
+                  
                   <div className="h-px w-full bg-slate-100" />
                   <button className="w-full flex items-center justify-between px-4 py-3 rounded-lg hover:bg-slate-50 transition-colors text-left group border border-transparent">
                     <div className="flex items-center gap-3">
