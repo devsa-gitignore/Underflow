@@ -149,7 +149,6 @@ export default function Dashboard() {
     reader.readAsDataURL(file);
   };
 
-<<<<<<< HEAD
   // Mock Triage Data
   const patients = [
     { id: 1, name: "Aarti Sharma", age: 28, risk: "red", issue: "Severe Anemia - BP 160/100", time: "Overdue", village: "Ward 4" },
@@ -158,7 +157,7 @@ export default function Dashboard() {
     { id: 4, name: "Rahul Kumar", age: 2, risk: "green", issue: "Vaccination Completed", time: "Done", village: "Ward 2" },
     { id: 5, name: "Meena Kumari", age: 22, risk: "yellow", issue: "Low Weight Gain", time: "Tomorrow", village: "Ward 5" },
   ];
-=======
+
   const sortedPatients = [...patients].sort((a, b) => {
     const rank = { red: 0, yellow: 1, green: 2 };
     return rank[a.risk] - rank[b.risk];
@@ -187,7 +186,6 @@ export default function Dashboard() {
   const maternalCount = patients.filter((patient) => patient.isPregnant).length;
   const weeklyCompletion = patients.length ? Math.min(100, Math.round(((patients.length - highRiskCount) / patients.length) * 100)) : 0;
   const featuredPatient = priorityPatients[0];
->>>>>>> 4ce5547d56033e2d4e8d88a460f37a70532b3d80
 
   const getCardStyles = (risk) => {
     switch (risk) {
