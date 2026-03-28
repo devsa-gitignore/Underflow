@@ -6,23 +6,26 @@ import PatientDirectory from './PatientDirectory';
 import AddPatient from './AddPatient';
 import PatientProfile from './PatientProfile';
 import Layout from './Layout';
+import { LanguageProvider } from './LanguageProvider';
 import './App.css';
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Login />} />
-        
-        {/* Protected Routes inside Layout */}
-        <Route element={<Layout />}>
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/directory" element={<PatientDirectory />} />
-          <Route path="/add-patient" element={<AddPatient />} />
-          <Route path="/patient/:id" element={<PatientProfile />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+    <LanguageProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Login />} />
+          
+          {/* Protected Routes inside Layout */}
+          <Route element={<Layout />}>
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/directory" element={<PatientDirectory />} />
+            <Route path="/add-patient" element={<AddPatient />} />
+            <Route path="/patient/:id" element={<PatientProfile />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </LanguageProvider>
   );
 }
 

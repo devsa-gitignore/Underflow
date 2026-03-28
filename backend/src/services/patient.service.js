@@ -71,18 +71,8 @@ export const generatePatientQR = async (patientId) => {
     throw new Error('Patient not found');
   }
 
-  // Create a profile object for the QR code
-  const profile = {
-    _id: patient._id,
-    name: patient.name,
-    age: patient.age,
-    gender: patient.gender,
-    village: patient.village,
-    currentRiskLevel: patient.currentRiskLevel,
-    ashaId: patient.ashaId,
-  };
-
-  const qrDataURL = await createQRDataURL(profile);
+  // Keep the QR payload minimal so it remains easy to scan from screenshots.
+  const qrDataURL = await createQRDataURL(String(patient._id));
   patient.qrCode = qrDataURL;
   await patient.save();
   return patient;

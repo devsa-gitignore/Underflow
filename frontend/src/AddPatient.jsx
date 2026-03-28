@@ -5,19 +5,111 @@ import {
   Stethoscope, ShieldCheck, QrCode, Mic, MicOff, Languages
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useLanguage } from './language-context';
 
 export default function AddPatient() {
   const navigate = useNavigate();
+  const { language: appLanguage } = useLanguage();
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
-  const [generatedId, setGeneratedId] = useState('');
   
   // New State for Step 4
   const [qrCodeUrl, setQrCodeUrl] = useState('');
   const [isGeneratingQR, setIsGeneratingQR] = useState(false);
   const [isListening, setIsListening] = useState(false);
-  const [language, setLanguage] = useState('en-IN');
+  const [speechLanguage, setSpeechLanguage] = useState('en-IN');
+  const text = appLanguage === 'hi'
+    ? {
+        header: 'नया रोगी पंजीकरण',
+        subheader: 'आधिकारिक Swasthya Sathi रिकॉर्ड बनाएं।',
+        identity: 'पहचान',
+        location: 'स्थान',
+        category: 'श्रेणी',
+        details: 'विवरण',
+        firstName: 'पहला नाम',
+        lastName: 'उपनाम',
+        ageYears: 'आयु (वर्ष)',
+        gender: 'लिंग',
+        female: 'महिला',
+        male: 'पुरुष',
+        mobile: 'मोबाइल नंबर',
+        ward: 'गांव / वार्ड',
+        wardPlaceholder: 'क्षेत्र चुनें...',
+        address: 'पता विवरण',
+        categoryTitle: 'मुख्य क्लिनिकल ट्रैक',
+        categorySubtitle: 'उचित देखभाल समयरेखा के लिए मुख्य श्रेणी चुनें।',
+        maternalCare: 'मातृ देखभाल',
+        maternalDesc: 'ANC ट्रैकिंग, पोषण और प्रसव पूर्व/पश्चात निगरानी।',
+        pediatric: 'बाल देखभाल',
+        pediatricDesc: 'टीकाकरण, वृद्धि ट्रैकिंग और इम्यूनाइजेशन।',
+        chronic: 'दीर्घकालिक बीमारी',
+        chronicDesc: 'हाइपरटेंशन, डायबिटीज और लंबी अवधि की निगरानी।',
+        general: 'सामान्य ट्रायेज',
+        generalDesc: 'सामान्य लक्षण जांच और मौसमी बीमारी रिकॉर्ड।',
+        notes: 'प्रारंभिक क्लिनिकल नोट्स',
+        notesPlaceholder: 'नोट्स लिखें या आवाज से दर्ज करें...',
+        identification: 'रोगी पहचान',
+        qrReady: 'क्यूआर कोड रोगी खोज के लिए तैयार है',
+        savedDb: 'डेटाबेस में सहेजा गया',
+        syncDb: 'डेटाबेस से सिंक हो रहा है...',
+        generateQr: 'अद्वितीय क्यूआर कोड बनाएं',
+        back: 'वापस',
+        continue: 'आगे बढ़ें',
+        completeRegistration: 'पंजीकरण पूरा करें',
+        encrypting: 'सुरक्षित किया जा रहा है...',
+        successTitle: 'पंजीकरण सत्यापित',
+        successBody: 'का डेटा सुरक्षित रूप से सूची में जोड़ दिया गया है।',
+        registrationStatus: 'पंजीकरण स्थिति',
+        patientAdded: 'रोगी जोड़ा गया',
+        backToDirectory: 'सूची पर वापस जाएं',
+        dashboard: 'डैशबोर्ड',
+      }
+    : {
+        header: 'Register New Patient',
+        subheader: 'Create an official Swasthya Sathi record.',
+        identity: 'Identity',
+        location: 'Location',
+        category: 'Category',
+        details: 'Details',
+        firstName: 'First Name',
+        lastName: 'Last Name',
+        ageYears: 'Age (Years)',
+        gender: 'Gender',
+        female: 'Female',
+        male: 'Male',
+        mobile: 'Mobile Number',
+        ward: 'Village / Ward Assignment',
+        wardPlaceholder: 'Select an assigned area...',
+        address: 'Specific Address Details',
+        categoryTitle: 'Primary Clinical Track',
+        categorySubtitle: 'Select the main pathway to generate the proper care timeline.',
+        maternalCare: 'Maternal Care',
+        maternalDesc: 'ANC tracking, nutrition, and pre/post natal monitoring.',
+        pediatric: 'Pediatric',
+        pediatricDesc: 'Infant vaccinations, growth tracking, and immunizations.',
+        chronic: 'Chronic Illness',
+        chronicDesc: 'Hypertension, Diabetes, and long-term condition management.',
+        general: 'General Triage',
+        generalDesc: 'Standard symptomatic checks and seasonal illness logging.',
+        notes: 'Initial Clinical Notes',
+        notesPlaceholder: 'Type notes or click the mic for voice dictation...',
+        identification: 'Patient Identification',
+        qrReady: 'QR code ready for patient lookup',
+        savedDb: 'Saved to Database',
+        syncDb: 'Syncing with Database...',
+        generateQr: 'Generate Unique QR Code',
+        back: 'Back',
+        continue: 'Continue',
+        completeRegistration: 'Complete Registration',
+        encrypting: 'Encrypting...',
+        successTitle: 'Registration Verified',
+        successBody: "'s data has been encrypted and safely added to the directory.",
+        registrationStatus: 'Registration Status',
+        patientAdded: 'Patient Added',
+        backToDirectory: 'Back to Directory',
+        dashboard: 'Dashboard',
+      };
 
   // Form State
   const [formData, setFormData] = useState({
@@ -90,7 +182,6 @@ export default function AddPatient() {
 
       const qrData = await qrResponse.json();
       
-      setGeneratedId(patientId);
       setQrCodeUrl(qrData.qrCode); // Backend returns dataURL/Base64
       
     } catch (error) {
@@ -99,7 +190,6 @@ export default function AddPatient() {
       
       // Fallback for demo
       const mockId = `SS-${Math.floor(100000 + Math.random() * 900000)}`;
-      setGeneratedId(mockId);
       setQrCodeUrl(`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${mockId}`);
     } finally {
       setIsGeneratingQR(false);
@@ -116,7 +206,7 @@ export default function AddPatient() {
     }
 
     const recognition = new SpeechRecognition();
-    recognition.lang = language;
+    recognition.lang = speechLanguage;
     recognition.interimResults = false;
 
     recognition.onstart = () => setIsListening(true);
@@ -156,7 +246,7 @@ export default function AddPatient() {
               {step > num ? <CheckCircle2 size={18} /> : num}
             </div>
             <span className={`text-xs font-semibold ${step >= num ? 'text-slate-800' : 'text-slate-400'}`}>
-              {num === 1 ? 'Identity' : num === 2 ? 'Location' : num === 3 ? 'Category' : 'Details'}
+              {num === 1 ? text.identity : num === 2 ? text.location : num === 3 ? text.category : text.details}
             </span>
           </div>
         ))}
@@ -176,8 +266,8 @@ export default function AddPatient() {
           
         {/* Header */}
         <div className="bg-slate-900 p-6 text-white shrink-0">
-          <h2 className="text-xl font-semibold tracking-tight">Register New Patient</h2>
-          <p className="text-sm text-slate-400 mt-1">Create an official Swasthya Sathi record.</p>
+          <h2 className="text-xl font-semibold tracking-tight">{text.header}</h2>
+          <p className="text-sm text-slate-400 mt-1">{text.subheader}</p>
         </div>
 
         {!isComplete ? (
@@ -190,7 +280,7 @@ export default function AddPatient() {
               <div className="animate-in fade-in slide-in-from-right-4 duration-300 space-y-6 flex-1">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">First Name</label>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">{text.firstName}</label>
                     <input 
                       type="text" name="firstName" value={formData.firstName} onChange={handleInputChange}
                       className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all"
@@ -198,7 +288,7 @@ export default function AddPatient() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">Last Name</label>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">{text.lastName}</label>
                     <input 
                       type="text" name="lastName" value={formData.lastName} onChange={handleInputChange}
                       className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all"
@@ -209,7 +299,7 @@ export default function AddPatient() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">Age (Years)</label>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">{text.ageYears}</label>
                     <input 
                       type="number" name="age" value={formData.age} onChange={handleInputChange}
                       className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all"
@@ -217,19 +307,19 @@ export default function AddPatient() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">Gender</label>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">{text.gender}</label>
                     <div className="grid grid-cols-2 gap-2">
                       <button 
                         onClick={() => setFormData(prev => ({...prev, gender: 'F'}))}
                         className={`py-3 rounded-lg font-semibold text-sm transition-all border ${formData.gender === 'F' ? 'bg-teal-50 border-teal-500 text-teal-700 shadow-sm' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
                       >
-                        Female
+                        {text.female}
                       </button>
                       <button 
                         onClick={() => setFormData(prev => ({...prev, gender: 'M'}))}
                         className={`py-3 rounded-lg font-semibold text-sm transition-all border ${formData.gender === 'M' ? 'bg-teal-50 border-teal-500 text-teal-700 shadow-sm' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
                       >
-                        Male
+                        {text.male}
                       </button>
                     </div>
                   </div>
@@ -241,7 +331,7 @@ export default function AddPatient() {
             {step === 2 && (
               <div className="animate-in fade-in slide-in-from-right-4 duration-300 space-y-6 flex-1">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Mobile Number</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">{text.mobile}</label>
                   <div className="flex">
                     <span className="inline-flex items-center px-4 bg-slate-100 border border-r-0 border-slate-200 rounded-l-lg text-slate-500 font-semibold text-sm">
                       +91
@@ -255,12 +345,12 @@ export default function AddPatient() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Village / Ward Assignment</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">{text.ward}</label>
                   <select 
                     name="ward" value={formData.ward} onChange={handleInputChange}
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all text-slate-700 font-medium"
                   >
-                    <option value="">Select an assigned area...</option>
+                    <option value="">{text.wardPlaceholder}</option>
                     <option value="Ward 1">Ward 1 (North Block)</option>
                     <option value="Ward 2">Ward 2 (East Block)</option>
                     <option value="Ward 4">Ward 4 (Central Block)</option>
@@ -269,7 +359,7 @@ export default function AddPatient() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Specific Address Details</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">{text.address}</label>
                   <textarea 
                     name="address" value={formData.address} onChange={handleInputChange} rows="2"
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all resize-none"
@@ -283,8 +373,8 @@ export default function AddPatient() {
             {step === 3 && (
               <div className="animate-in fade-in slide-in-from-right-4 duration-300 flex-1">
                 <div className="mb-6">
-                  <h3 className="text-lg font-bold text-slate-900 mb-1">Primary Clinical Track</h3>
-                  <p className="text-sm text-slate-500 font-medium">Select the main pathway to generate the proper care timeline.</p>
+                  <h3 className="text-lg font-bold text-slate-900 mb-1">{text.categoryTitle}</h3>
+                  <p className="text-sm text-slate-500 font-medium">{text.categorySubtitle}</p>
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">
@@ -295,8 +385,8 @@ export default function AddPatient() {
                     className={`p-4 rounded-xl border-2 text-left transition-all relative overflow-hidden group ${formData.category === 'maternal' ? 'border-teal-500 bg-teal-50 ring-4 ring-teal-500/10' : 'border-slate-200 hover:border-teal-300 hover:bg-slate-50'}`}
                   >
                     <Baby size={28} className={`mb-3 ${formData.category === 'maternal' ? 'text-teal-600' : 'text-slate-400 group-hover:text-teal-500'}`} />
-                    <h4 className={`font-bold text-lg mb-1 ${formData.category === 'maternal' ? 'text-teal-900' : 'text-slate-800'}`}>Maternal Care</h4>
-                    <p className="text-xs text-slate-500 font-medium leading-relaxed">ANC tracking, nutrition, and pre/post natal monitoring.</p>
+                    <h4 className={`font-bold text-lg mb-1 ${formData.category === 'maternal' ? 'text-teal-900' : 'text-slate-800'}`}>{text.maternalCare}</h4>
+                    <p className="text-xs text-slate-500 font-medium leading-relaxed">{text.maternalDesc}</p>
                     {formData.category === 'maternal' && <CheckCircle2 className="absolute top-4 right-4 text-teal-500" size={20} />}
                   </button>
 
@@ -305,8 +395,8 @@ export default function AddPatient() {
                     className={`p-4 rounded-xl border-2 text-left transition-all relative overflow-hidden group ${formData.category === 'pediatric' ? 'border-blue-500 bg-blue-50 ring-4 ring-blue-500/10' : 'border-slate-200 hover:border-blue-300 hover:bg-slate-50'}`}
                   >
                     <User size={28} className={`mb-3 ${formData.category === 'pediatric' ? 'text-blue-600' : 'text-slate-400 group-hover:text-blue-500'}`} />
-                    <h4 className={`font-bold text-lg mb-1 ${formData.category === 'pediatric' ? 'text-blue-900' : 'text-slate-800'}`}>Pediatric</h4>
-                    <p className="text-xs text-slate-500 font-medium leading-relaxed">Infant vaccinations, growth tracking, and immunizations.</p>
+                    <h4 className={`font-bold text-lg mb-1 ${formData.category === 'pediatric' ? 'text-blue-900' : 'text-slate-800'}`}>{text.pediatric}</h4>
+                    <p className="text-xs text-slate-500 font-medium leading-relaxed">{text.pediatricDesc}</p>
                     {formData.category === 'pediatric' && <CheckCircle2 className="absolute top-4 right-4 text-blue-500" size={20} />}
                   </button>
 
@@ -315,8 +405,8 @@ export default function AddPatient() {
                     className={`p-4 rounded-xl border-2 text-left transition-all relative overflow-hidden group ${formData.category === 'chronic' ? 'border-purple-500 bg-purple-50 ring-4 ring-purple-500/10' : 'border-slate-200 hover:border-purple-300 hover:bg-slate-50'}`}
                   >
                     <HeartPulse size={28} className={`mb-3 ${formData.category === 'chronic' ? 'text-purple-600' : 'text-slate-400 group-hover:text-purple-500'}`} />
-                    <h4 className={`font-bold text-lg mb-1 ${formData.category === 'chronic' ? 'text-purple-900' : 'text-slate-800'}`}>Chronic Illness</h4>
-                    <p className="text-xs text-slate-500 font-medium leading-relaxed">Hypertension, Diabetes, and long-term condition management.</p>
+                    <h4 className={`font-bold text-lg mb-1 ${formData.category === 'chronic' ? 'text-purple-900' : 'text-slate-800'}`}>{text.chronic}</h4>
+                    <p className="text-xs text-slate-500 font-medium leading-relaxed">{text.chronicDesc}</p>
                     {formData.category === 'chronic' && <CheckCircle2 className="absolute top-4 right-4 text-purple-500" size={20} />}
                   </button>
 
@@ -325,8 +415,8 @@ export default function AddPatient() {
                     className={`p-4 rounded-xl border-2 text-left transition-all relative overflow-hidden group ${formData.category === 'general' ? 'border-amber-500 bg-amber-50 ring-4 ring-amber-500/10' : 'border-slate-200 hover:border-amber-300 hover:bg-slate-50'}`}
                   >
                     <Stethoscope size={28} className={`mb-3 ${formData.category === 'general' ? 'text-amber-600' : 'text-slate-400 group-hover:text-amber-500'}`} />
-                    <h4 className={`font-bold text-lg mb-1 ${formData.category === 'general' ? 'text-amber-900' : 'text-slate-800'}`}>General Triage</h4>
-                    <p className="text-xs text-slate-500 font-medium leading-relaxed">Standard symptomatic checks and seasonal illness logging.</p>
+                    <h4 className={`font-bold text-lg mb-1 ${formData.category === 'general' ? 'text-amber-900' : 'text-slate-800'}`}>{text.general}</h4>
+                    <p className="text-xs text-slate-500 font-medium leading-relaxed">{text.generalDesc}</p>
                     {formData.category === 'general' && <CheckCircle2 className="absolute top-4 right-4 text-amber-500" size={20} />}
                   </button>
 
@@ -341,12 +431,12 @@ export default function AddPatient() {
                 {/* Voice to Text Notes */}
                 <div>
                   <div className="flex justify-between items-end mb-2">
-                    <label className="block text-sm font-semibold text-slate-700">Initial Clinical Notes</label>
+                    <label className="block text-sm font-semibold text-slate-700">{text.notes}</label>
                     <div className="flex items-center gap-2 bg-white border border-slate-200 px-3 py-1.5 rounded-md shadow-sm">
                       <Languages size={14} className="text-slate-400" />
                       <select 
-                        value={language}
-                        onChange={(e) => setLanguage(e.target.value)}
+                        value={speechLanguage}
+                        onChange={(e) => setSpeechLanguage(e.target.value)}
                         className="text-xs font-medium text-slate-600 bg-transparent focus:outline-none cursor-pointer"
                       >
                         <option value="en-IN">English (India)</option>
@@ -364,7 +454,7 @@ export default function AddPatient() {
                       onChange={handleInputChange} 
                       rows="4"
                       className="w-full px-4 py-3 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all resize-none text-slate-700 font-medium pb-12 shadow-sm"
-                      placeholder="Type notes or click the mic for voice dictation..."
+                      placeholder={text.notesPlaceholder}
                     ></textarea>
                     
                     {/* Interactive Mic Button */}
@@ -381,12 +471,12 @@ export default function AddPatient() {
 
                 {/* QR Generator */}
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 text-center">
-                  <h3 className="text-sm font-semibold text-slate-700 mb-4">Patient Identification</h3>
+                  <h3 className="text-sm font-semibold text-slate-700 mb-4">{text.identification}</h3>
                   {qrCodeUrl ? (
                     <div className="flex flex-col items-center animate-in zoom-in-95">
                       <img src={qrCodeUrl} alt="Patient QR Code" className="w-32 h-32 rounded-lg shadow-sm border border-slate-200 mb-3" />
-                      <p className="text-lg font-mono font-bold text-slate-800 tracking-wider">{generatedId}</p>
-                      <p className="text-xs font-medium text-teal-600 mt-1 flex items-center justify-center gap-1"><CheckCircle2 size={14}/> Saved to Database</p>
+                      <p className="text-sm font-semibold text-slate-800">{text.qrReady}</p>
+                      <p className="text-xs font-medium text-teal-600 mt-1 flex items-center justify-center gap-1"><CheckCircle2 size={14}/> {text.savedDb}</p>
                     </div>
                   ) : (
                     <button 
@@ -400,12 +490,12 @@ export default function AddPatient() {
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                           </svg>
-                          Syncing with Database...
+                          {text.syncDb}
                         </>
                       ) : (
                         <>
                           <QrCode className="text-slate-400 group-hover:text-teal-500 transition-colors" size={20} /> 
-                          Generate Unique QR Code
+                          {text.generateQr}
                         </>
                       )}
                     </button>
@@ -424,7 +514,7 @@ export default function AddPatient() {
                   step === 1 ? 'text-slate-300 cursor-not-allowed' : 'text-slate-600 hover:bg-slate-100'
                 }`}
               >
-                <ChevronLeft size={18} /> Back
+                <ChevronLeft size={18} /> {text.back}
               </button>
 
               {step < 4 ? (
@@ -432,7 +522,7 @@ export default function AddPatient() {
                   onClick={handleNext}
                   className="px-6 py-2.5 bg-slate-900 text-white rounded-lg font-semibold text-sm flex items-center gap-2 hover:bg-slate-800 transition-all shadow-sm"
                 >
-                  Continue <ChevronRight size={18} />
+                  {text.continue} <ChevronRight size={18} />
                 </button>
               ) : (
                 <button 
@@ -446,10 +536,10 @@ export default function AddPatient() {
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
-                      Encrypting...
+                      {text.encrypting}
                     </span>
                   ) : (
-                    <>Complete Registration <ShieldCheck size={18} /></>
+                    <>{text.completeRegistration} <ShieldCheck size={18} /></>
                   )}
                 </button>
               )}
@@ -463,9 +553,11 @@ export default function AddPatient() {
               <CheckCircle2 size={40} className="text-teal-600" />
             </div>
             
-            <h3 className="text-3xl font-black text-slate-900 mb-2">Registration Verified</h3>
+            <h3 className="text-3xl font-black text-slate-900 mb-2">{text.successTitle}</h3>
             <p className="text-slate-500 font-medium text-center max-w-sm mb-8">
-              {formData.firstName} {formData.lastName}'s data has been encrypted and safely added to the directory.
+              {appLanguage === 'hi'
+                ? `${formData.firstName} ${formData.lastName} ${text.successBody}`
+                : `${formData.firstName} ${formData.lastName}${text.successBody}`}
             </p>
 
             {/* ID Badge Output */}
@@ -473,8 +565,8 @@ export default function AddPatient() {
               <div className="absolute top-0 left-0 w-2 h-full bg-teal-500" />
               <div className="flex justify-between items-start mb-4 pl-2">
                 <div>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Official SS-ID</p>
-                  <p className="text-2xl font-black text-slate-800 font-mono tracking-wider">{generatedId}</p>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">{text.registrationStatus}</p>
+                  <p className="text-2xl font-black text-slate-800 tracking-tight">{text.patientAdded}</p>
                 </div>
                 <QrCode size={40} className="text-slate-300" />
               </div>
@@ -486,10 +578,10 @@ export default function AddPatient() {
 
             <div className="mt-10 flex gap-4 w-full max-w-sm">
               <button onClick={() => navigate('/directory')} className="flex-1 py-3 bg-white border border-slate-200 text-slate-700 rounded-lg font-semibold hover:bg-slate-50 transition-colors">
-                Back to Directory
+                {text.backToDirectory}
               </button>
               <button onClick={() => navigate('/dashboard')} className="flex-1 py-3 bg-teal-600 text-white rounded-lg font-semibold shadow-md shadow-teal-200 hover:bg-teal-700 transition-colors">
-                Dashboard
+                {text.dashboard}
               </button>
             </div>
           </div>
