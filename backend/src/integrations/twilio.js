@@ -25,13 +25,12 @@ export const sendSMS = async (to, body) => {
 /**
  * Trigger an outbound IVR call.
  */
-export const startIVRCall = async (to) => {
+export const startIVRCall = async (to, audioUrl) => {
   if (!client) throw new Error('Twilio not configured for Live Mode');
-  return client.calls.create({
-    to,
-    from: process.env.TWILIO_PHONE_NUMBER,
-    twiml: `
-<Response>
+  
+  const twiml = audioUrl 
+    ? `<Response><Play>${audioUrl}</Play></Response>`
+    : `<Response>
   <Say voice="alice">
     Hello.
     <Pause length="1"/>
@@ -43,7 +42,11 @@ export const startIVRCall = async (to) => {
     <Pause length="1"/>
     Thank you, and take care of your health.
   </Say>
-</Response>
-`,  
+</Response>`;
+
+  return client.calls.create({
+    to,
+    from: process.env.TWILIO_PHONE_NUMBER,
+    twiml,  
   });
 };

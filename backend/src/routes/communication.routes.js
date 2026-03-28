@@ -4,6 +4,7 @@ import {
   generateTTS,
   startIVRCall,
   handleMissedCallWebhook,
+  handleSMSWebhook,
 } from '../controllers/communication.controller.js';
 import { protect } from '../middlewares/auth.middleware.js';
 
@@ -14,6 +15,7 @@ const router = express.Router();
 // Webhook for incoming caller event
 // Public endpoint for Twilio
 router.post('/missed-call/webhook', handleMissedCallWebhook);
+router.post('/sms/webhook', handleSMSWebhook);
 
 // Protected routes for general communication
 //router.use(protect);

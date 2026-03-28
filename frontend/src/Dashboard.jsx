@@ -1,13 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import {
-  Plus,
-  Users,
-  Baby,
-  RefreshCw,
-  ChevronRight,
-  AlertCircle,
-  Activity,
-  CheckCircle2,
+import { 
+  Plus, Users, Baby, RefreshCw, 
+  ChevronRight, AlertCircle, Activity, CheckCircle2 
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import jsQR from 'jsqr';
@@ -24,8 +18,8 @@ const hindiText = {
   fileError: 'चुनी गई फाइल पढ़ी नहीं जा सकी।',
   overview: 'सारांश',
   overviewSubtitle: 'आज के लिए आपकी प्राथमिक स्वास्थ्य कार्यसूची।',
-  alertTitle: 'तत्काल कार्रवाई: क्लिनिकल अलर्ट',
-  alertBodyPrefix: 'के नवीनतम vitals में जोखिम दिख रहा है। प्रोटोकॉल के अनुसार प्राथमिक केंद्र रेफरल की सलाह दी जाती है।',
+  alertTitle: 'तत्कल कार्रवाई: क्लिनिकल अलर्ट',
+  alertBodyPrefix: ' के नवीनतम vitals में जोखिम दिख रहा है। प्रोटोकॉल के अनुसार प्राथमिक केंद्र रेफरल की सलाह दी जाती है।',
   viewProtocol: 'प्रोटोकॉल देखें',
   pendingVisits: 'लंबित विजिट',
   families: 'परिवार',
@@ -113,9 +107,9 @@ function mapPatients(data) {
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { language } = useLanguage();
   const [isScanning, setIsScanning] = useState(false);
   const [patients, setPatients] = useState([]);
+  const { language } = useLanguage();
   const text = language === 'hi' ? hindiText : englishText;
 
   useEffect(() => {
@@ -155,19 +149,21 @@ export default function Dashboard() {
         canvas.width = img.width;
         canvas.height = img.height;
         context.drawImage(img, 0, 0, img.width, img.height);
-
+        
         const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
         const code = jsQR(imageData.data, imageData.width, imageData.height, {
-          inversionAttempts: 'dontInvert',
+          inversionAttempts: "dontInvert",
         });
 
         if (code) {
           let patientId = code.data;
           try {
             const parsed = JSON.parse(code.data);
-            if (parsed._id || parsed.id) patientId = parsed._id || parsed.id;
+            if (parsed._id || parsed.id) {
+              patientId = parsed._id || parsed.id;
+            }
           } catch {
-            // Use raw payload when QR stores only the patient id.
+            // Raw string
           }
 
           if (typeof patientId === 'string' && patientId.trim()) {
@@ -179,26 +175,21 @@ export default function Dashboard() {
         } else {
           alert(text.noQr);
         }
-
         setIsScanning(false);
         input.value = '';
       };
-
       img.onerror = () => {
         alert(text.imageError);
         setIsScanning(false);
         input.value = '';
       };
-
       img.src = event.target.result;
     };
-
     reader.onerror = () => {
       alert(text.fileError);
       setIsScanning(false);
       input.value = '';
     };
-
     reader.readAsDataURL(file);
   };
 
@@ -206,11 +197,28 @@ export default function Dashboard() {
     const rank = { red: 0, yellow: 1, green: 2 };
     return rank[a.risk] - rank[b.risk];
   });
-  const priorityPatients = sortedPatients.slice(0, 6);
+  
+  const reds = sortedPatients.filter((p) => p.risk === 'red').slice(0, 2);
+  const yellows = sortedPatients.filter((p) => p.risk === 'yellow').slice(0, 2);
+  const greens = sortedPatients.filter((p) => p.risk === 'green').slice(0, 2);
+  let balancedPriority = [...reds, ...yellows, ...greens];
+  
+  if (balancedPriority.length < 6) {
+    const assignedIds = new Set(balancedPriority.map((p) => p.id));
+    const remaining = sortedPatients.filter((p) => !assignedIds.has(p.id));
+    balancedPriority = [...balancedPriority, ...remaining.slice(0, 6 - balancedPriority.length)];
+  }
+  
+  balancedPriority.sort((a, b) => {
+    const rank = { red: 0, yellow: 1, green: 2 };
+    return rank[a.risk] - rank[b.risk];
+  });
+
+  const priorityPatients = balancedPriority;
   const highRiskCount = patients.filter((patient) => patient.risk === 'red').length;
   const maternalCount = patients.filter((patient) => patient.isPregnant).length;
   const weeklyCompletion = patients.length ? Math.min(100, Math.round(((patients.length - highRiskCount) / patients.length) * 100)) : 0;
-  const featuredPatient = priorityPatients[0];
+  const featuredPatient = priorityPatients.find(p => p.risk === 'red') || priorityPatients[0];
 
   const getCardStyles = (risk) => {
     switch (risk) {
@@ -218,6 +226,8 @@ export default function Dashboard() {
         return 'bg-red-50 border-l-[3px] border-red-500 shadow-sm relative overflow-hidden group';
       case 'yellow':
         return 'bg-yellow-50/50 border-l-[3px] border-yellow-400 group';
+      case 'green':
+        return 'bg-white border border-slate-200 group';
       default:
         return 'bg-white border border-slate-200 group';
     }
@@ -225,12 +235,10 @@ export default function Dashboard() {
 
   const getBadgeStyles = (risk) => {
     switch (risk) {
-      case 'red':
-        return 'bg-red-100 text-red-700';
-      case 'yellow':
-        return 'bg-yellow-100 text-yellow-700';
-      default:
-        return 'bg-teal-50 text-teal-700';
+      case 'red': return 'bg-red-100 text-red-700';
+      case 'yellow': return 'bg-yellow-100 text-yellow-700';
+      case 'green': return 'bg-teal-50 text-teal-700';
+      default: return 'bg-slate-100 text-slate-700';
     }
   };
 
@@ -254,6 +262,7 @@ export default function Dashboard() {
   return (
     <div className="p-6 lg:p-10 font-inter">
       <div className="max-w-7xl mx-auto space-y-8">
+        
         <div className="flex justify-between items-end">
           <div>
             <h2 className="text-2xl font-semibold text-slate-900 mb-1">{text.overview}</h2>
@@ -264,7 +273,7 @@ export default function Dashboard() {
           </Link>
         </div>
 
-        {featuredPatient && (
+        {featuredPatient && featuredPatient.risk === 'red' && (
           <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start sm:items-center justify-between gap-4">
             <div className="flex items-start gap-3">
               <AlertCircle size={20} className="text-red-500 mt-0.5 shrink-0" />

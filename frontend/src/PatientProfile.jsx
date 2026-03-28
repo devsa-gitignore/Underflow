@@ -20,6 +20,7 @@ import {
 import { useLanguage } from './language-context';
 import { translatePersonName, translateWardLabel } from './text-utils';
 import { getStoredToken } from './auth-utils';
+import PregnancyTimeline from './components/PregnancyTimeline';
 
 export default function PatientProfile() {
   const navigate = useNavigate();
@@ -247,14 +248,30 @@ export default function PatientProfile() {
               </div>
             </div>
 
-            {/* Action Button - Mobile friendly */}
-            <button className="w-full md:w-auto mt-4 md:mt-0 px-6 py-3.5 bg-teal-600 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-teal-700 transition-colors shadow-md shadow-teal-200 group">
-              <Plus size={20} className="group-hover:scale-110 transition-transform" />
-              {text.logVisit}
-            </button>
+            {/* Actions - Mobile friendly */}
+            <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto mt-4 md:mt-0">
+              {patient.category === 'Maternal' && (
+                <button 
+                  onClick={() => navigate(`/patient/${patient.id}/timeline`)}
+                  className="w-full md:w-auto px-6 py-3.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-emerald-100 transition-colors shadow-sm"
+                >
+                  <Activity size={20} />
+                  {language === 'hi' ? 'एआई टाइमलाइन देखें' : 'View AI Timeline'}
+                </button>
+              )}
+              <button className="w-full md:w-auto px-6 py-3.5 bg-teal-600 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-teal-700 transition-colors shadow-md shadow-teal-200 group">
+                <Plus size={20} className="group-hover:scale-110 transition-transform" />
+                {text.logVisit}
+              </button>
+            </div>
 
           </div>
         </div>
+
+        {/* CONDITIONAL PREGNANCY TIMELINE */}
+        {patient.category === 'Maternal' && (
+          <PregnancyTimeline patient={patient} />
+        )}
 
         {/* VISIT HISTORY SECTION */}
         <div>

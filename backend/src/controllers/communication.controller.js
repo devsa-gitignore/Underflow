@@ -49,15 +49,57 @@ export const startIVRCall = asyncHandler(async (req, res) => {
 // @desc    Handle Missed Call Webhook (Twilio or simulated)
 // @route   POST /comm/missed-call/webhook
 // @access  Public
-export const handleMissedCallWebhook = asyncHandler(async (req, res) => {
-  // Twilio uses 'From' for incoming callers. We can handle both 'From' and 'phone'.
-  const fromPhone = req.body.From || req.body.phone;
+// @desc    Handle Missed Call Webhook (Twilio or simulated)
+// @route   POST /comm/missed-call/webhook
+// @access  Public
+export const handleMissedCallWebhook = (req, res) => {
+  const fromPhone = req.body.From;
 
-  if (!fromPhone) {
-    res.status(400);
-    throw new Error('No phone number provider in webhook body');
+  // 1. Log for visibility during demo
+  console.log(`\n--- 📵 INCOMING MISSED CALL WEBHOOK ---`);
+  console.log(`👤 Caller: ${fromPhone || 'Unknown'}`);
+
+  // 2. Respond to Twilio INSTANTLY with a Busy/Reject signal
+  // This minimizes "answering" time
+  res.set('Content-Type', 'text/xml');
+  res.status(200).send(`<?xml version="1.0" encoding="UTF-8"?><Response><Reject reason="busy" /></Response>`);
+
+  // 3. Trigger the callback logic in the background
+  if (fromPhone) {
+    commsService.handleMissedCall(fromPhone)
+      .then(() => console.log(`✅ Automated IVR Callback initiated for: ${fromPhone}`))
+      .catch(err => console.error(`❌ Callback failed for ${fromPhone}:`, err.message));
+  } else {
+    // If it's a direct API test (not from Twilio)
+    const phone = req.body.phone;
+    if (phone) {
+       commsService.handleMissedCall(phone)
+         .then(() => console.log('✅ Simulation success'))
+         .catch(err => console.error('❌ Simulation error:', err));
+    }
   }
+};
 
-  const result = await commsService.handleMissedCall(fromPhone);
-  res.status(200).json({ success: true, message: 'Missed Call Callback Triggered', result });
-});
+// @desc    Handle Incoming SMS Webhook
+// @route   POST /comm/sms/webhook
+// @access  Public
+export const handleSMSWebhook = (req, res) => {
+  const fromPhone = req.body.From;
+  const body = req.body.Body;
+
+  // 1. Log incoming SMS
+  console.log(`\n--- 📩 INCOMING SMS WEBHOOK ---`);
+  console.log(`👤 From: ${fromPhone}`);
+  console.log(`💬 Message: "${body}"`);
+
+  // 2. Respond with empty TwiML (Required by Twilio)
+  res.set('Content-Type', 'text/xml');
+  res.status(200).send(`<?xml version="1.0" encoding="UTF-8"?><Response></Response>`);
+
+  // 3. Trigger the SAME callback logic as the missed call!
+  if (fromPhone) {
+    commsService.handleMissedCall(fromPhone)
+      .then(() => console.log(`✅ Automated IVR Callback triggered via SMS for: ${fromPhone}`))
+      .catch(err => console.error(`❌ SMS Callback failed for ${fromPhone}:`, err.message));
+  }
+};

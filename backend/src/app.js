@@ -3,6 +3,9 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes.js';
 import patientRoutes from './routes/patient.routes.js';
+import voiceRoutes from './routes/voice.routes.js';
+import qrRoutes from './routes/qr.routes.js';
+import communicationRoutes from './routes/communication.routes.js';
 import aiRoutes from './routes/ai.routes.js';
 import alertRoutes from './routes/alert.routes.js';
 import syncRoutes from './routes/sync.routes.js';
@@ -13,6 +16,7 @@ dotenv.config();
 const app = express();
 
 app.use(cors());
+app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
 // Routes
@@ -21,6 +25,9 @@ app.use('/patients', patientRoutes);
 app.use('/ai', aiRoutes);
 app.use('/alerts', alertRoutes);
 app.use('/sync', syncRoutes);
+app.use('/qr', qrRoutes);
+app.use('/comm', communicationRoutes);
+app.use('/voice', voiceRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

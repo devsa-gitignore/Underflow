@@ -1,1 +1,10 @@
 /* Clean */
+
+button {
+  cursor: pointer !important;
+  transition: transform 0.2s ease-in-out !important;
+}
+
+button:hover {
+  transform: scale(1.05) !important;
+}
