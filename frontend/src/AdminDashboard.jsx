@@ -123,7 +123,7 @@ export default function AdminDashboard() {
               <Shield size={18} className="text-white" />
             </div>
             <h1 className="text-xl font-bold tracking-tight text-white">
-              Swasthya<span className="font-normal text-slate-400">Admin</span>
+              Swasthya<span className="font-normal text-slate-400">Sathi</span>
             </h1>
           </div>
 
