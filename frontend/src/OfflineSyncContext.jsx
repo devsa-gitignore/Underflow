@@ -14,6 +14,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { getStoredToken } from './auth-utils';
 import { getQueue, clearQueue, enqueueAction } from './sync-utils';
+import { CheckCircle2, AlertCircle, RefreshCw, Wifi, WifiOff, Info } from 'lucide-react';
 
 // ── Context ──────────────────────────────────────────────────────────────────
 const OfflineSyncContext = createContext(null);
@@ -176,12 +177,13 @@ export function OfflineSyncProvider({ children }) {
           }`}
         >
           {/* Icon */}
-          <span className="text-base">
-            {toast.type === 'success'  ? '✅' :
-             toast.type === 'error'    ? '❌' :
-             toast.type === 'syncing'  ? '🔄' :
-             toast.type === 'online'   ? '🟢' :
-             toast.type === 'offline'  ? '🟡' : 'ℹ️'}
+          <span className="flex items-center justify-center pt-0.5">
+            {toast.type === 'success'  ? <CheckCircle2 size={18} className="shrink-0" /> :
+             toast.type === 'error'    ? <AlertCircle size={18} className="shrink-0" /> :
+             toast.type === 'syncing'  ? <RefreshCw size={18} className="shrink-0 animate-spin" /> :
+             toast.type === 'online'   ? <Wifi size={18} className="shrink-0" /> :
+             toast.type === 'offline'  ? <WifiOff size={18} className="shrink-0" /> :
+                                         <Info size={18} className="shrink-0" />}
           </span>
           {toast.message}
           <button

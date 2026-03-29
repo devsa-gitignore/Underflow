@@ -73,7 +73,7 @@ function AadhaarModal({ onClose, onConfirm }) {
   const handleConfirm = () => {
     setStep('assigning');
     setTimeout(() => {
-      setAssignedStats({ patients: 47, tasks: 12, alerts: 3 });
+      setAssignedStats({ patients: 2, tasks: 12, alerts: 3 });
       setStep('done');
     }, 3200);
   };
@@ -354,9 +354,9 @@ export default function AdminDashboard() {
                 phone: w.phone || '—',
                 status: Math.random() > 0.3 ? 'online' : 'offline',
                 lastSync: Math.random() > 0.3 ? 'Just now' : '2 hrs ago',
-                cases: Math.floor(Math.random() * 200) + 50,
-                tasks: Math.floor(Math.random() * 20) + 5,
-                critical: Math.floor(Math.random() * 10)
+                cases: Math.floor(Math.random() * 4) + 2,
+                tasks: Math.floor(Math.random() * 6) + 3,
+                critical: Math.floor(Math.random() * 3)
              }));
              setFieldWorkers(mapped);
           }
@@ -975,9 +975,9 @@ export default function AdminDashboard() {
               ward: data.region,
               status: 'online',
               lastSync: 'Just now',
-              cases: 47,
-              tasks: 12,
-              critical: 3,
+              cases: 12,
+              tasks: 8,
+              critical: 1,
             };
             setFieldWorkers(prev => [newWorker, ...prev]);
             setShowAadhaar(false);
