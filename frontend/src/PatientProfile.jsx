@@ -28,6 +28,7 @@ import { useLanguage } from './language-context';
 import { translatePersonName, translateWardLabel } from './text-utils';
 import { getStoredToken } from './auth-utils';
 import { enqueueAction, isOfflineError } from './sync-utils';
+import { useOfflineSync } from './OfflineSyncContext';
 import PregnancyTimeline from './components/PregnancyTimeline';
 import MagicBento from './MagicBento';
 
@@ -35,6 +36,7 @@ export default function PatientProfile() {
   const navigate = useNavigate();
   const { id: routeId } = useParams();
   const { language } = useLanguage();
+  const { isOnline } = useOfflineSync();
   // State to track which visit in the history list is currently expanded
   const [expandedVisitId, setExpandedVisitId] = useState(null);
   const [, setIsLoading] = useState(true);
@@ -190,87 +192,54 @@ export default function PatientProfile() {
     setVisitAIResult(null);
     try {
       const token = await getStoredToken();
-      if (visitForm) {
-        const riskRequestPayload = {
-          patientId: routeId,
-          bp: visitForm.bp,
-          weight: visitForm.weight,
-          bloodSugar: visitForm.bloodSugar,
-          symptoms: visitForm.symptoms || 'None',
-          otherFactors: visitForm.otherFactors || `Age: ${patient.age}, Category: ${patient.category}`,
+      
+      const visitPayload = {
+        patientId: routeId,
+        vitals: { 
+          bloodPressure: visitForm.bp, 
+          weight: parseFloat(visitForm.weight) || undefined,
+          bloodSugar: visitForm.bloodSugar || undefined
+        },
+        symptoms: visitForm.symptoms ? visitForm.symptoms.split(',').map((s) => s.trim()) : [],
+        notes: visitForm.notes,
+        otherFactors: visitForm.otherFactors,
+      };
+
+      // ── OFFLINE CHECK ──────────────────────────────────────────────────
+      if (!isOnline) {
+        console.warn("[Visit] Offline detected. Bypassing AI analysis.");
+        enqueueAction('ADD_VISIT', visitPayload);
+        
+        // Push a local fake copy to state so UI updates
+        const localDate = new Date();
+        const localMockVisit = {
+          id: 'temp-' + Date.now(),
+          date: localDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          time: localDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+          type: visitForm.notes?.includes?.('ANC') ? 'ANC Checkup' : 'Clinical Visit',
+          risk: 'yellow', // Pending/Unknown
+          vitals: {
+            bp: visitForm.bp || 'N/A',
+            temp: 'N/A',
+            weight: visitForm.weight ? `${visitForm.weight} kg` : 'N/A',
+            pulse: 'N/A',
+          },
+          symptoms: visitForm.symptoms ? visitForm.symptoms.split(',') : ['None reported'],
+          notes: visitForm.notes || 'No clinical notes recorded.',
+          action: 'Saved locally. Pending upload sync.',
+          worker: 'Jash Nikombhe (AW-1029)'
         };
+        
+        setVisits(prev => [localMockVisit, ...prev]);
 
-        let assessedRisk = null;
-        let assessedSuggestion = null;
-        let assessedCondition = null;
-        let assessedImmediateAction = false;
-
-        try {
-          const assessmentResponse = await fetch('http://localhost:5000/ai/risk-assessment', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-            body: JSON.stringify(riskRequestPayload),
-          });
-
-          if (assessmentResponse.ok) {
-            const assessmentData = await assessmentResponse.json();
-            assessedRisk = assessmentData.data?.riskLevel || null;
-            assessedSuggestion = assessmentData.data?.adviceForAshaWorker || null;
-            assessedCondition = assessmentData.data?.possibleCondition || null;
-            assessedImmediateAction = Boolean(assessmentData.data?.immediateActionRequired);
-          }
-        } catch {
-          // Let backend heuristics infer risk if live AI is unavailable.
-        }
-
-        const visitPayload = {
-          patientId: routeId,
-          vitals: { bloodPressure: visitForm.bp, weight: parseFloat(visitForm.weight) || undefined },
-          symptoms: visitForm.symptoms ? visitForm.symptoms.split(',').map((symptom) => symptom.trim()) : [],
-          notes: visitForm.notes,
-          otherFactors: visitForm.otherFactors,
-          riskLevel: assessedRisk || undefined,
-          aiSuggestion: assessedSuggestion || undefined,
-        };
-
-        try {
-          const visitResponse = await fetch(`http://localhost:5000/patients/${routeId}/visits`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-            body: JSON.stringify(visitPayload),
-          });
-
-          if (!visitResponse.ok) {
-            throw new Error('Visit could not be saved.');
-          }
-
-          const savedVisit = await visitResponse.json();
-          setVisitAIResult({
-            riskLevel: savedVisit.riskLevel || assessedRisk || 'LOW',
-            possibleCondition: assessedCondition || 'Visit recorded successfully',
-            immediateActionRequired: assessedImmediateAction || savedVisit.riskLevel === 'HIGH' || savedVisit.riskLevel === 'CRITICAL',
-            adviceForAshaWorker: savedVisit.aiSuggestion || assessedSuggestion || 'Continue monitoring as per protocol.',
-          });
-          setVisitSuccess(true);
-          await Promise.all([fetchVisits(), fetchPatient()]);
-          return;
-        } catch (error) {
-          if (isOfflineError(error)) {
-            enqueueAction('ADD_VISIT', visitPayload);
-            setVisitAIResult({
-              riskLevel: 'MEDIUM',
-              possibleCondition: 'Offline mode',
-              immediateActionRequired: false,
-              adviceForAshaWorker: 'Visit saved for sync. Risk will be recalculated once the backend is reachable.',
-            });
-            setVisitSuccess(true);
-            return;
-          }
-
-          throw error;
-        }
+        setVisitAIResult(null); // Keep AI null when offline
+        setVisitSuccess(true);
+        setVisitSubmitting(false);
+        return;
       }
-      const aiPayload = {
+
+      // ── ONLINE FLOW ────────────────────────────────────────────────────
+      const riskRequestPayload = {
         patientId: routeId,
         bp: visitForm.bp,
         weight: visitForm.weight,
@@ -284,81 +253,60 @@ export default function PatientProfile() {
       let assessedCondition = null;
       let assessedImmediateAction = false;
 
+      // Try AI assessment first
       try {
-        const aiRes = await fetch('http://localhost:5000/ai/risk-assessment', {
+        const assessmentResponse = await fetch('http://localhost:5000/ai/risk-assessment', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify(aiPayload),
+          body: JSON.stringify(riskRequestPayload),
         });
 
-        if (aiRes.ok) {
-          const aiData = await aiRes.json();
-          assessedRisk = aiData.data?.riskLevel || null;
-          assessedSuggestion = aiData.data?.adviceForAshaWorker || null;
-          assessedCondition = aiData.data?.possibleCondition || null;
-          assessedImmediateAction = Boolean(aiData.data?.immediateActionRequired);
+        if (assessmentResponse.ok) {
+          const assessmentData = await assessmentResponse.json();
+          assessedRisk = assessmentData.data?.riskLevel || null;
+          assessedSuggestion = assessmentData.data?.adviceForAshaWorker || null;
+          assessedCondition = assessmentData.data?.possibleCondition || null;
+          assessedImmediateAction = Boolean(assessmentData.data?.immediateActionRequired);
         }
-      } catch {
-        // Let backend visit heuristics infer risk if the AI endpoint is unavailable.
+      } catch (aiErr) {
+        console.warn("[Visit] AI assessment skip/fail:", aiErr.message);
       }
 
-      const visitPayload = {
-        patientId: routeId,
-        vitals: { bloodPressure: visitForm.bp, weight: parseFloat(visitForm.weight) || undefined },
-        symptoms: visitForm.symptoms ? visitForm.symptoms.split(',').map(s => s.trim()) : [],
-        notes: visitForm.notes,
-        otherFactors: visitForm.otherFactors,
-        riskLevel: assessedRisk || undefined,
-        aiSuggestion: assessedSuggestion || undefined,
-      };
+      // Add analytics to payload
+      visitPayload.riskLevel = assessedRisk || undefined;
+      visitPayload.aiSuggestion = assessedSuggestion || undefined;
+
       const visitResponse = await fetch(`http://localhost:5000/patients/${routeId}/visits`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(visitPayload),
       });
 
-      // 2. Run AI risk assessment with the new vitals
-      const legacyAiPayload = {
-        patientId: routeId,
-        bp: visitForm.bp,
-        weight: visitForm.weight,
-        bloodSugar: visitForm.bloodSugar,
-        symptoms: visitForm.symptoms || 'None',
-        otherFactors: visitForm.otherFactors || `Age: ${patient.age}, Category: ${patient.category}`,
-      };
-      const legacyAiRes = await fetch('http://localhost:5000/ai/risk-assessment', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(legacyAiPayload),
-      });
-      if (legacyAiRes.ok) {
-        const aiData = await legacyAiRes.json();
-        setVisitAIResult(aiData.data);
-      } else {
-        // Fallback demo result
-        setVisitAIResult({
-          riskLevel: 'LOW',
-          possibleCondition: 'No acute concern detected',
-          immediateActionRequired: false,
-          adviceForAshaWorker: 'Continue routine monitoring. Encourage healthy diet and hydration.',
-        });
-      }
-      setVisitSuccess(true);
-      // Refresh visit history silently — use mapVisitData to transform
-      const r = await fetch(`http://localhost:5000/patients/${routeId}/visits`, { headers: { Authorization: `Bearer ${token}` } });
-      if (r.ok) { const d = await r.json(); if (d.length > 0) setVisits(d.map(mapVisitData)); }
-    } catch {
+      if (!visitResponse.ok) throw new Error('Visit could not be saved.');
+
+      const savedVisit = await visitResponse.json();
       setVisitAIResult({
-        riskLevel: 'LOW',
-        possibleCondition: 'Demo mode — backend not reachable',
-        immediateActionRequired: false,
-        adviceForAshaWorker: 'Visit queued for offline sync.',
+        riskLevel: savedVisit.riskLevel || assessedRisk || 'LOW',
+        possibleCondition: assessedCondition || 'Normal health check recorded',
+        immediateActionRequired: assessedImmediateAction || savedVisit.riskLevel === 'HIGH' || savedVisit.riskLevel === 'CRITICAL',
+        adviceForAshaWorker: savedVisit.aiSuggestion || assessedSuggestion || 'Continue routine monitoring.',
       });
       setVisitSuccess(true);
+      await Promise.all([fetchVisits(), fetchPatient()]);
+    } catch (error) {
+      console.error("[Visit] Submit failed:", error);
+      if (isOfflineError(error)) {
+        enqueueAction('ADD_VISIT', { patientId: routeId, ...visitForm });
+        setVisitSuccess(true);
+      } else {
+        alert("Submission failed. Please check your connection or server status.");
+      }
     } finally {
       setVisitSubmitting(false);
     }
   };
+
+
 
   // Reusable mapper for raw backend visit → display format
   const mapVisitData = (v) => {
@@ -860,24 +808,25 @@ export default function PatientProfile() {
                   </div>
                 )}
 
-                {/* AI RESULT — shown after success */}
-                {visitSuccess && visitAIResult && (
+                {/* RESULT — shown after success */}
+                {visitSuccess && (
                   <div className="space-y-4">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
                         <CheckCircle2 size={22} className="text-emerald-600" />
                       </div>
                       <div>
-                        <p className="font-bold text-slate-900">Visit Logged Successfully</p>
-                        <p className="text-xs text-slate-500">AI Analysis complete</p>
+                        <p className="font-bold text-slate-900">Visit Logged {!isOnline && 'Locally'}</p>
+                        <p className="text-xs text-slate-500">{isOnline ? 'AI Analysis complete' : 'Saved to queue. Will sync when online.'}</p>
                       </div>
                     </div>
 
-                    <div className={`rounded-2xl border p-5 ${
-                      visitAIResult.riskLevel === 'HIGH' || visitAIResult.riskLevel === 'CRITICAL' ? 'bg-red-50 border-red-200' :
-                      visitAIResult.riskLevel === 'MODERATE' || visitAIResult.riskLevel === 'MEDIUM' ? 'bg-amber-50 border-amber-200' :
-                      'bg-emerald-50 border-emerald-200'
-                    }`}>
+                    {visitAIResult && (
+                      <div className={`rounded-2xl border p-5 ${
+                        visitAIResult.riskLevel === 'HIGH' || visitAIResult.riskLevel === 'CRITICAL' ? 'bg-red-50 border-red-200' :
+                        visitAIResult.riskLevel === 'MODERATE' || visitAIResult.riskLevel === 'MEDIUM' ? 'bg-amber-50 border-amber-200' :
+                        'bg-emerald-50 border-emerald-200'
+                      }`}>
                       <div className="flex items-center gap-3 mb-4">
                         <Brain size={20} className={`${
                           visitAIResult.riskLevel === 'HIGH' || visitAIResult.riskLevel === 'CRITICAL' ? 'text-red-600' :
@@ -911,6 +860,7 @@ export default function PatientProfile() {
                         )}
                       </div>
                     </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -945,7 +895,15 @@ export default function PatientProfile() {
                           onClick={submitVisit}
                           className="flex-1 py-3 rounded-xl bg-teal-600 text-white font-bold text-sm hover:bg-teal-700 transition-colors flex items-center justify-center gap-2"
                         >
-                          <Brain size={16} /> Submit & Analyse with AI
+                          {isOnline ? (
+                            <>
+                              <Brain size={16} /> Submit & Analyse with AI
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle2 size={16} /> Save Offline Data
+                            </>
+                          )}
                         </button>
                       )}
                     </>

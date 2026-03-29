@@ -30,8 +30,11 @@ export const getPatientById = async (id) => {
   return patient;
 };
 
-export const searchPatients = async (query, village, region) => {
+export const searchPatients = async (query, village, region, ashaId = null) => {
   let findQuery = { isDeleted: false };
+  if (ashaId) {
+    findQuery.ashaId = ashaId; // Enforce data isolation
+  }
   if (query) {
     findQuery.name = { $regex: query, $options: 'i' };
   }

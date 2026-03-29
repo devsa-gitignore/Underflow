@@ -3,14 +3,14 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   Menu, Bell, CloudOff, Plus, Languages, ChevronRight,
   Search, LayoutDashboard, Users, Baby, RefreshCw, 
-  Settings, LogOut, ShieldAlert, UploadCloud
+  Settings, LogOut, ShieldAlert, UploadCloud, ClipboardList
 } from 'lucide-react';
 import { useLanguage } from './language-context';
 import { getStoredToken } from './auth-utils';
-import { getQueue, clearQueue } from './sync-utils';
+import { getQueue } from './sync-utils';
+import { useOfflineSync } from './OfflineSyncContext';
 
 export default function Layout() {
-  const [isOffline, setIsOffline] = useState(false);
   const location = useLocation();
   const { language, toggleLanguage } = useLanguage();
 
@@ -29,6 +29,7 @@ export default function Layout() {
         offlineMode: 'ऑफलाइन मोड',
         preferences: 'प्राथमिकताएं',
         alerts: 'अलर्ट',
+        tasks: 'लंबित कार्य',
         search: 'रजिस्ट्री खोजें...',
         offlineStatus: 'ऑफलाइन कार्यरत',
         syncedStatus: 'सिंक हो गया',
@@ -46,6 +47,7 @@ export default function Layout() {
         offlineMode: 'Offline Mode',
         preferences: 'Preferences',
         alerts: 'Health Alerts',
+        tasks: 'Compliance Tasks',
         search: 'Search registry...',
         offlineStatus: 'Working Offline',
         syncedStatus: 'Synced',
@@ -56,37 +58,27 @@ export default function Layout() {
         syncing: 'Syncing Data...',
       };
 
-  const [queueLength, setQueueLength] = useState(0);
-  const [isSyncing, setIsSyncing] = useState(false);
+  const [queueLength, setQueueLength]   = useState(0);
   const [showVisitModal, setShowVisitModal] = useState(false);
-  const [visitSearch, setVisitSearch] = useState('');
+  const [visitSearch, setVisitSearch]     = useState('');
   const [visitPatients, setVisitPatients] = useState([]);
-  const [visitLoading, setVisitLoading] = useState(false);
+  const [visitLoading, setVisitLoading]   = useState(false);
   const navigate = useNavigate();
+
+  // Pull live sync state from the global context
+  const { isOnline, isSyncing, syncNow, queueLength: ctxQueueLength } = useOfflineSync();
+  const isOffline = !isOnline;
 
   // Hook to track real network status and queue items
   useEffect(() => {
-    const handleNetworkChange = () => setIsOffline(!navigator.onLine);
-    const updateQueueSize = () => {
-      const q = getQueue();
-      setQueueLength(q.length);
-    };
-
-    // Initial check
-    handleNetworkChange();
+    const updateQueueSize = () => setQueueLength(getQueue().length);
     updateQueueSize();
-
-    window.addEventListener('online', handleNetworkChange);
-    window.addEventListener('offline', handleNetworkChange);
     window.addEventListener('syncUpdate', updateQueueSize);
-
-    // Initial listener for hackathon demo
-    const interval = setInterval(updateQueueSize, 2000); 
-
+    window.addEventListener('syncComplete', updateQueueSize);
+    const interval = setInterval(updateQueueSize, 2000);
     return () => {
-      window.removeEventListener('online', handleNetworkChange);
-      window.removeEventListener('offline', handleNetworkChange);
       window.removeEventListener('syncUpdate', updateQueueSize);
+      window.removeEventListener('syncComplete', updateQueueSize);
       clearInterval(interval);
     };
   }, []);
@@ -114,40 +106,9 @@ export default function Layout() {
     p.village?.toLowerCase().includes(visitSearch.toLowerCase())
   );
 
-  const handleManualSync = async () => {
-
-    const actions = getQueue();
-    if (actions.length === 0) return;
-
-    setIsSyncing(true);
-    try {
-      const token = await getStoredToken();
-      // Assume AW-1029 is the local worker
-      const payload = { ashaId: 'AW-1029', actions };
-
-      const response = await fetch('http://localhost:5000/sync/upload', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (!response.ok) throw new Error("Sync failed. Check Server.");
-
-      const result = await response.json();
-      console.log("Sync Complete:", result);
-      
-      clearQueue();
-      alert(`Sync successful! Processed ${result.processed} new records.`);
-    } catch (err) {
-      console.error(err);
-      alert("Failed to sync. Please ensure you are online and the server is reachable.");
-    } finally {
-      setIsSyncing(false);
-    }
-  };
+  // handleManualSync is now provided by OfflineSyncContext (syncNow)
+  // Kept as alias for the button onClick below
+  const handleManualSync = syncNow;
 
   const [currentUser, setCurrentUser] = useState(null);
 
@@ -194,6 +155,9 @@ export default function Layout() {
           </Link>
           <Link to="/add-patient" className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive('/add-patient') ? 'bg-emerald-900/40 text-emerald-400' : 'text-slate-400 hover:text-white'}`}>
             <Plus size={18} /> {text.addPatient}
+          </Link>
+          <Link to="/tasks" className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive('/tasks') ? 'bg-emerald-900/40 text-emerald-400' : 'text-slate-400 hover:text-white'}`}>
+            <ClipboardList size={18} /> {text.tasks}
           </Link>
 
           

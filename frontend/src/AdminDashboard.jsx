@@ -61,7 +61,7 @@ function AadhaarModal({ onClose, onConfirm }) {
 
   const handleScan = () => {
     setStep('scanning');
-    setTimeout(() => setStep('preview'), 2200);
+    setTimeout(() => setStep('preview'), 4200);
   };
 
   const handleFileChange = (e) => {
@@ -75,7 +75,7 @@ function AadhaarModal({ onClose, onConfirm }) {
     setTimeout(() => {
       setAssignedStats({ patients: 47, tasks: 12, alerts: 3 });
       setStep('done');
-    }, 1800);
+    }, 3200);
   };
 
   return (
@@ -118,12 +118,12 @@ function AadhaarModal({ onClose, onConfirm }) {
               />
 
               <div className="flex flex-col gap-3">
-                <button
+                {/* <button
                   onClick={handleScan}
                   className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-sm shadow-blue-200 flex items-center justify-center gap-2"
                 >
                   <Scan size={16} /> Scan Aadhaar Now
-                </button>
+                </button> */}
                 
                 <button
                   onClick={() => fileInputRef.current.click()}
@@ -149,7 +149,7 @@ function AadhaarModal({ onClose, onConfirm }) {
               <p className="font-bold text-slate-900 text-base mb-1">Reading Aadhaar…</p>
               <p className="text-sm text-slate-400 font-medium">Connecting to UIDAI Verification Portal</p>
               <div className="mt-5 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                <div className="h-full bg-blue-500 rounded-full animate-[scan_2.2s_ease-in-out_forwards]" style={{width: '100%', animation: 'none', background: 'linear-gradient(90deg,#3b82f6,#6366f1)', maskImage: 'linear-gradient(90deg,#000 var(--p,0%),transparent var(--p,0%))'}} />
+                <div className="h-full bg-blue-500 rounded-full animate-[scan_4.2s_ease-in-out_forwards]" style={{width: '100%', animation: 'none', background: 'linear-gradient(90deg,#3b82f6,#6366f1)', maskImage: 'linear-gradient(90deg,#000 var(--p,0%),transparent var(--p,0%))'}} />
               </div>
             </div>
           )}
@@ -366,6 +366,8 @@ export default function AdminDashboard() {
       }
     };
     fetchAdminData();
+    const interval = setInterval(fetchAdminData, 10000); // Poll Stats every 10s
+    return () => clearInterval(interval);
   }, []);
 
   const runEpidemicAlert = async () => {
@@ -956,7 +958,6 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               )}
-
             </div>
           </main>
         </div>
