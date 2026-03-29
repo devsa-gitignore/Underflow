@@ -16,18 +16,8 @@ export const sendOTP = async (phone) => {
 
   let user = await User.findOne({ phone: { $regex: cleanPhone.replace(/^\+91/, '').replace(/^\+/, '') } });
   
-  if (!user && process.env.NODE_ENV === 'development') {
-    console.log(`[AUTH DEBUG] Auto-creating ASHA worker for phone number: ${formattedPhone}`);
-    user = await User.create({
-      name: 'Test ASHA Worker',
-      phone: formattedPhone,
-      region: 'Development Region',
-      role: 'ASHA'
-    });
-  }
-
   if (!user) {
-    throw new Error('User not registered as an ASHA worker. Contact administrator.');
+    throw new Error('User not registered as an ASHA worker. Contact administrator to register your phone.');
   }
 
   const otp = generateRandomOTP();
@@ -37,20 +27,20 @@ export const sendOTP = async (phone) => {
   user.otpExpires = otpExpires;
   await user.save();
 
-  // Send the real SMS via Twilio
-  try {
-    const message = `Namaste! Your Swasthya Sathi login OTP is: ${otp}. Valid for 10 minutes.`;
-    await sendSMS(formattedPhone, message);
-    console.log(`[OTP] Twilio SMS successfully sent to ${formattedPhone}`);
-  } catch (err) {
-    console.error(`[OTP ERROR] Failed to send SMS to ${formattedPhone}:`, err.message);
-    // In development, we don't throw so user can still see it in logs
-    if (process.env.NODE_ENV !== 'development') {
-      throw new Error('Failed to deliver OTP message via SMS. Please check phone number.');
+  // Send real SMS only if explicitly enabled in .env (for demo/production)
+  if (process.env.TWILIO_SEND_OTP === 'true') {
+    try {
+      const message = `Namaste! Your Swasthya Sathi login OTP is: ${otp}. Valid for 10 minutes.`;
+      await sendSMS(formattedPhone, message);
+      console.log(`[OTP] Twilio SMS successfully sent to ${formattedPhone}`);
+    } catch (err) {
+      console.error(`[OTP ERROR] Twilio Send Failed: ${err.message}`);
+      // Don't crash if SMS fails in dev, just keep logs
     }
+  } else {
+    console.log(`[OTP DEBUG] TWILIO_SEND_OTP is disabled. OTP for ${formattedPhone}: ${otp}`);
   }
 
-  console.log(`[OTP DEBUG] Generated OTP ${otp} for ${formattedPhone}`);
   return { 
     message: 'OTP sent to mobile number', 
     otp: process.env.NODE_ENV === 'development' ? otp : undefined // only expose in dev
@@ -58,35 +48,34 @@ export const sendOTP = async (phone) => {
 };
 
 export const loginWithOTP = async (phone, otp) => {
-  // Use the same clean phone and formatted phone pattern as sendOTP
-  const cleanPhone = phone.replace(/\s/g, ''); 
-  const regexPattern = cleanPhone.replace(/^\+91/, '').replace(/^\+/, '');
-
-  const user = await User.findOne({
-    phone: { $regex: regexPattern },
-    otp: otp.toString(),
-    otpExpires: { $gt: Date.now() },
-  });
+  // Normalize phone for regex matching
+  const cleanPhone = phone.replace(/\s/g, '').replace(/^\+91/, '').replace(/^\+/, '');
+  const user = await User.findOne({ phone: { $regex: cleanPhone } });
 
   if (!user) {
+    throw new Error('User not found. Cannot verify OTP.');
+  }
+
+  // ALLOW SHORTHAND BYPASS FOR DEMOS IN DEVELOPMENT
+  const isDevBypass = process.env.NODE_ENV === 'development' && otp === '123456';
+
+  if (!isDevBypass && (!user.otp || user.otp !== otp || user.otpExpires < Date.now())) {
     throw new Error('Invalid or expired OTP');
   }
 
-  // Clear OTP after successful login
+  // Clear OTP after successful use
   user.otp = undefined;
   user.otpExpires = undefined;
-  user.isVerified = true;
   await user.save();
 
   const token = generateToken(user._id);
-
   return {
     _id: user._id,
     name: user.name,
     phone: user.phone,
     role: user.role,
-    region: user.region,
-    token,
+    region: user.region || 'Palghar',
+    token, // Send token back
   };
 };
 
