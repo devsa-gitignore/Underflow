@@ -517,15 +517,15 @@ export default function Dashboard() {
             </div>
 
             <div className="flex flex-col gap-3">
-              {priorityPatients.filter(p => !hiddenCards.includes(p.id)).length === 0 ? (
+              {priorityPatients.length === 0 ? (
                 <div className="bg-white border border-slate-200 rounded-xl p-6 text-sm text-slate-500">
                   {text.noPatients}
                 </div>
               ) : (
-                priorityPatients.filter(p => !hiddenCards.includes(p.id)).map((patient) => (
+                priorityPatients.map((patient) => (
                   <div
                     key={patient.id}
-                    onClick={() => handleCardClick(patient.id, `/patient/${patient.id}`)}
+                    onClick={() => navigate(`/patient/${patient.id}`)}
                     className={`p-3 rounded-xl transition-all cursor-pointer relative group ${getCardStyles(patient.risk)}`}
                   >
                     {patient.risk === 'red' && (

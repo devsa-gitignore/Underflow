@@ -5,7 +5,7 @@ import * as complianceService from '../services/compliance.service.js';
 // @route   POST /compliance
 // @access  Private (ASHA Worker usually)
 export const logCompliance = asyncHandler(async (req, res) => {
-  const { patientId, type, status, notes, date } = req.body;
+  const { patientId, type, status, date } = req.body;
   
   if (!patientId || !type || !status) {
     res.status(400);
@@ -21,7 +21,6 @@ export const logCompliance = asyncHandler(async (req, res) => {
     ashaId,
     type,
     status,
-    notes,
     date
   }, role);
 
@@ -51,4 +50,14 @@ export const getMissedActions = asyncHandler(async (req, res) => {
   const missedActions = await complianceService.detectMissedActions(ashaId);
 
   res.status(200).json({ success: true, count: missedActions.length, missedActions });
+});
+
+// @desc    Patch an existing Missed Task to Completed
+// @route   PATCH /compliance/:id/resolve
+// @access  Private
+export const resolveMissedTask = asyncHandler(async (req, res) => {
+  const taskId = req.params.id;
+  
+  const compliance = await complianceService.resolveMissedTask(taskId);
+  res.status(200).json({ success: true, compliance });
 });

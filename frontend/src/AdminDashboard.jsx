@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import IndiaHeatmap from './components/IndiaHeatmap';
 import { getStoredToken } from './auth-utils';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 // ── Animated counter hook ──────────────────────────────────────────────────
 function useCountUp(target, duration = 1200, startOnMount = true) {
@@ -302,6 +302,7 @@ function MagicBento({ children, className = "", glowColor = "16, 185, 129" }) {
 
 export default function AdminDashboard() {
   // Navigation State
+  const navigate = useNavigate();
   const [activeView, setActiveView] = useState('commandCenter');
 
   const [fieldWorkers, setFieldWorkers] = useState([]);
@@ -414,6 +415,12 @@ export default function AdminDashboard() {
     document.body.removeChild(link);
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('swasthya_token');
+    localStorage.removeItem('swasthya_user');
+    navigate('/login');
+  };
+
   // --- Chart Math helpers for 7 Day Trend ---
   const maxTrendCases = React.useMemo(() => {
     if (trendStats.length === 0) return 10;
@@ -493,7 +500,11 @@ export default function AdminDashboard() {
           </nav>
 
           <div className="p-4 border-t border-slate-800">
-            <div className="flex items-center gap-3 p-2 hover:bg-slate-800/50 rounded-lg cursor-pointer transition-colors">
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center gap-3 p-2 hover:bg-slate-800/50 rounded-lg cursor-pointer transition-colors text-left"
+              title="Exit Admin"
+            >
               <div className="w-10 h-10 bg-slate-800 border border-slate-700 rounded-md flex items-center justify-center text-white font-bold">
                 DR
               </div>
@@ -502,7 +513,7 @@ export default function AdminDashboard() {
                 <p className="text-xs text-slate-500 truncate">Chief Medical Officer</p>
               </div>
               <LogOut size={16} className="text-slate-500" />
-            </div>
+            </button>
           </div>
         </aside>
 

@@ -20,7 +20,7 @@ const complianceSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: [STATUS.COMPLETED, STATUS.MISSED],
+      enum: [STATUS.COMPLETED, STATUS.MISSED, STATUS.PENDING],
       required: true,
     },
     date: {
