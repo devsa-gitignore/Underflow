@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import IndiaHeatmap from './components/IndiaHeatmap';
 import { getStoredToken } from './auth-utils';
+import { Link } from 'react-router-dom';
 
 // Reusing our Magic Bento component for that premium SaaS glow
 function MagicBento({ children, className = "", glowColor = "16, 185, 129" }) {
@@ -124,23 +125,23 @@ export default function AdminDashboard() {
         `}
       </style>
 
-      <div className="h-screen bg-slate-50 flex font-inter text-slate-900 overflow-hidden w-full">
+      <div className="h-screen bg-[linear-gradient(160deg,#f0fdf4_0%,#ffffff_45%,#ecfdf5_100%)] flex font-inter text-slate-900 overflow-hidden w-full">
         
         {/* DARK ENTERPRISE SIDEBAR */}
         <aside className="w-64 bg-slate-950 text-slate-300 flex flex-col shrink-0 shadow-2xl z-20 border-r border-slate-800">
-          <div className="h-20 flex items-center px-6 border-b border-slate-800 bg-slate-900/50">
+          <Link to="/" className="h-20 flex items-center px-6 border-b border-slate-800 bg-slate-900/50 hover:bg-slate-800/60 transition-colors">
             <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center mr-3 shadow-lg shadow-blue-900/50">
               <Shield size={18} className="text-white" />
             </div>
             <h1 className="text-xl font-bold tracking-tight text-white">
               Swasthya<span className="font-normal text-slate-400">Sathi</span>
             </h1>
-          </div>
+          </Link>
 
-          <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto">
+          <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
             <button 
               onClick={() => setActiveView('commandCenter')}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-colors ${
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                 activeView === 'commandCenter' 
                   ? 'bg-blue-600/10 text-blue-400 border border-blue-500/20 shadow-sm' 
                   : 'hover:bg-slate-800 hover:text-white border border-transparent'
@@ -150,7 +151,7 @@ export default function AdminDashboard() {
             </button>
             <button 
               onClick={() => setActiveView('fieldWorkers')}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-colors ${
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                 activeView === 'fieldWorkers' 
                   ? 'bg-blue-600/10 text-blue-400 border border-blue-500/20 shadow-sm' 
                   : 'hover:bg-slate-800 hover:text-white border border-transparent'
@@ -161,12 +162,12 @@ export default function AdminDashboard() {
           </nav>
 
           <div className="p-4 border-t border-slate-800">
-            <div className="flex items-center gap-3 px-3 py-2 hover:bg-slate-800 rounded-lg cursor-pointer transition-colors">
+            <div className="flex items-center gap-3 p-2 hover:bg-slate-800/50 rounded-lg cursor-pointer transition-colors">
               <div className="w-10 h-10 bg-slate-800 border border-slate-700 rounded-md flex items-center justify-center text-white font-bold">
                 DR
               </div>
               <div className="flex-1 overflow-hidden">
-                <p className="text-sm font-semibold text-white truncate">Dr. R. Menon</p>
+                <p className="text-sm font-medium text-white truncate">Dr. R. Menon</p>
                 <p className="text-xs text-slate-500 truncate">Chief Medical Officer</p>
               </div>
               <LogOut size={16} className="text-slate-500" />
@@ -178,7 +179,7 @@ export default function AdminDashboard() {
         <div className="flex-1 flex flex-col h-full overflow-hidden relative">
           
           {/* TOP HEADER */}
-          <header className="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0 z-10">
+          <header className="h-20 bg-white/90 backdrop-blur-sm border-b border-emerald-100 flex items-center justify-between px-8 shrink-0 z-10">
             <div className="flex-1 max-w-xl flex items-center relative">
               <Search className="absolute left-3 text-slate-400" size={18} />
               <input 
@@ -201,7 +202,7 @@ export default function AdminDashboard() {
           </header>
 
           {/* SCROLLABLE DASHBOARD CONTENT */}
-          <main className="flex-1 overflow-y-auto p-8 bg-slate-50">
+          <main className="flex-1 overflow-y-auto p-8 bg-[linear-gradient(180deg,#f7fff9_0%,#ffffff_35%,#f3fff7_100%)]">
             <div className="max-w-7xl mx-auto space-y-6">
               
               {/* --- VIEW: COMMAND CENTER --- */}
@@ -242,13 +243,13 @@ export default function AdminDashboard() {
                       </div>
                     </MagicBento>
 
-                    <MagicBento glowColor="168, 85, 247" className="bg-white p-5 flex flex-col justify-between">
+                    <MagicBento glowColor="236, 72, 153" className="bg-white p-5 flex flex-col justify-between">
                       <div className="flex justify-between items-start mb-2">
                         <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Maternal Tracks</span>
-                        <div className="p-1.5 bg-purple-50 text-purple-600 rounded-md"><Activity size={16} /></div>
+                        <div className="p-1.5 bg-pink-50 text-pink-600 rounded-md"><Activity size={16} /></div>
                       </div>
                       <div>
-                        <span className="text-3xl font-black text-slate-900">1,402</span>
+                        <span className="text-3xl font-black text-pink-600">1,402</span>
                         <p className="text-xs font-semibold text-slate-500 mt-1 flex items-center gap-1">89% ANC compliance</p>
                       </div>
                     </MagicBento>
@@ -268,7 +269,7 @@ export default function AdminDashboard() {
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
                     {/* Ward Breakdown Table */}
                     <div className="lg:col-span-2 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex flex-col">
-                      <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50/50">
+                      <div className="px-6 py-4 border-b border-blue-100 flex justify-between items-center bg-blue-50/45">
                         <h3 className="font-bold text-slate-800">Ward Triage Breakdown</h3>
                         <button className="text-xs font-bold text-blue-600 hover:text-blue-800 transition-colors">Export CSV</button>
                       </div>
@@ -315,12 +316,12 @@ export default function AdminDashboard() {
                     {/* RIGHT COLUMN: Field Worker Fleet Status (Preview) */}
                     <div className="lg:col-span-1">
                       <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden h-full flex flex-col">
-                        <div className="px-6 py-5 border-b border-slate-200 flex justify-between items-center bg-slate-50/50">
+                        <div className="px-6 py-5 border-b border-purple-100 flex justify-between items-center bg-purple-50/45">
                           <div>
                             <h3 className="font-bold text-slate-800">Fleet Quick View</h3>
                             <p className="text-xs text-slate-500 font-medium mt-0.5">Real-time sync status</p>
                           </div>
-                          <span className="p-2 bg-slate-200 rounded-md text-slate-600"><Users size={16}/></span>
+                          <span className="p-2 bg-purple-100 rounded-md text-purple-600"><Users size={16}/></span>
                         </div>
                         
                         <div className="p-4 flex-1 overflow-y-auto space-y-3">
@@ -362,7 +363,7 @@ export default function AdminDashboard() {
                     
                     {/* Geographic Map Placeholder */}
                     <div className="lg:col-span-3 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex flex-col relative min-h-[340px]">
-                      <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50/50 relative z-10">
+                      <div className="px-6 py-4 border-b border-pink-100 flex justify-between items-center bg-pink-50/45 relative z-10">
                         <h3 className="font-bold text-slate-800 flex items-center gap-2">
                           <Map size={18} className="text-blue-600" /> Live Geographic Heatmap
                         </h3>
@@ -378,9 +379,9 @@ export default function AdminDashboard() {
 
                     {/* Case Trend Line Graph */}
                     <div className="lg:col-span-2 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex flex-col">
-                      <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50/50">
+                      <div className="px-6 py-4 border-b border-slate-300/70 flex justify-between items-center bg-slate-900/5">
                         <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                          <TrendingUp size={18} className="text-blue-600"/> 7-Day Case Trend
+                          <TrendingUp size={18} className="text-slate-700"/> 7-Day Case Trend
                         </h3>
                       </div>
                       
@@ -427,12 +428,12 @@ export default function AdminDashboard() {
                   </div>
 
                   {/* AI EPIDEMIC INSIGHTS */}
-                  <div className="mt-8 mb-10 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex flex-col">
-                    <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50/50">
+                  <div className="mt-8 mb-10 bg-white border border-red-100 rounded-xl shadow-sm overflow-hidden flex flex-col">
+                    <div className="px-6 py-4 border-b border-red-100 flex justify-between items-center bg-red-50/45">
                       <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                        <Activity size={18} className="text-purple-600" /> AI Epidemic & Outbreak Analysis
+                        <Activity size={18} className="text-red-500" /> AI Epidemic & Outbreak Analysis
                       </h3>
-                      <button onClick={runEpidemicAlert} className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2">
+                      <button onClick={runEpidemicAlert} className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2">
                         {isAiLoading ? <RefreshCw size={16} className="animate-spin" /> : "Run Area Scan"}
                       </button>
                     </div>
@@ -446,7 +447,7 @@ export default function AdminDashboard() {
                       )}
                       
                       {isAiLoading && (
-                        <div className="text-center py-12 text-purple-600 animate-pulse font-medium">
+                        <div className="text-center py-12 text-red-500 animate-pulse font-medium">
                           Scanning regional vitals and symptoms...
                         </div>
                       )}
@@ -491,11 +492,11 @@ export default function AdminDashboard() {
 
                   {/* Clean Data Table for Field Workers */}
                   <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-                    <div className="px-6 py-4 border-b border-slate-200 bg-slate-50/50 flex justify-between items-center">
+                    <div className="px-6 py-4 border-b border-blue-100 bg-blue-50/45 flex justify-between items-center">
                       <h3 className="font-bold text-slate-800 flex items-center gap-2">
                         <Users size={18} className="text-blue-600" /> Active Roster
                       </h3>
-                      <span className="text-xs font-bold text-slate-500 uppercase bg-slate-200 px-2 py-1 rounded">Total: {fieldWorkers.length}</span>
+                      <span className="text-xs font-bold text-blue-700 uppercase bg-blue-100 px-2 py-1 rounded">Total: {fieldWorkers.length}</span>
                     </div>
                     
                     <div className="overflow-x-auto">

@@ -59,29 +59,24 @@ const HeatmapStyles = () => {
 // Determines shade of color based on filter and cases
 const getColor = (cases, filterType) => {
   if (filterType === 'maternal') {
-    return cases > 20 ? '#065f46' : // Emerald 800
-           cases > 15 ? '#047857' : // Emerald 700
-           cases > 10 ? '#059669' : // Emerald 600
-           cases > 5  ? '#10b981' : // Emerald 500
-           cases > 0  ? '#34d399' : // Emerald 400
+    return cases > 20 ? '#831843' : // Pink 900
+           cases > 15 ? '#9d174d' : // Pink 800
+           cases > 10 ? '#be185d' : // Pink 700
+           cases > 5  ? '#db2777' : // Pink 600
+           cases > 0  ? '#ec4899' : // Pink 500
                         '#f1f5f9';  // Slate 100
-  } else if (filterType === 'highRisk') {
-    return cases > 30 ? '#7f1d1d' : // Red 900
-           cases > 20 ? '#991b1b' : // Red 800
+  }
+
+  if (filterType === 'highRisk') {
+    return cases > 20 ? '#7f1d1d' : // Red 900
+           cases > 15 ? '#991b1b' : // Red 800
            cases > 10 ? '#b91c1c' : // Red 700
            cases > 5  ? '#dc2626' : // Red 600
            cases > 0  ? '#ef4444' : // Red 500
                         '#f1f5f9';  
-  } else {
-    // Default (All cases)
-    return cases > 80 ? '#7f1d1d' : // Red 900
-           cases > 60 ? '#b91c1c' : // Red 700
-           cases > 40 ? '#ef4444' : // Red 500
-           cases > 20 ? '#f87171' : // Red 400
-           cases > 5  ? '#fca5a5' : // Red 300
-           cases > 0  ? '#fecaca' : // Red 200
-                        '#f1f5f9';  // Slate 100
   }
+
+  return '#f1f5f9';
 };
 
 function Legend({ filterType }) {
@@ -94,10 +89,9 @@ function Legend({ filterType }) {
       legend.onAdd = () => {
         const div = L.DomUtil.create('div', 'info legend');
         
-        let grades = [0, 5, 20, 40, 60, 80];
-        let title = 'Total Cases';
-        if (filterType === 'maternal') { grades = [0, 5, 10, 15, 20]; title = 'Maternal Cases'; }
-        if (filterType === 'highRisk') { grades = [0, 5, 10, 20, 30]; title = 'High Risk Cases'; }
+        let grades = [0, 5, 10, 15, 20];
+        let title = 'Maternal Index';
+        if (filterType === 'highRisk') { grades = [0, 5, 10, 15, 20]; title = 'Critical Index'; }
 
         const labels = [];
         let from, to;
@@ -129,15 +123,14 @@ function Legend({ filterType }) {
 }
 
 export default function RegionalHeatmap() {
-  const [filterType, setFilterType] = useState('all');
+  const [filterType, setFilterType] = useState('highRisk');
   
   // Center map closely around our mock regions
   const mapCenter = [23.2599, 77.4126];
 
   const getDisplayValue = (village) => {
     if (filterType === 'maternal') return village.maternalCases;
-    if (filterType === 'highRisk') return village.highRiskCases;
-    return village.totalCases;
+    return village.highRiskCases;
   };
 
   return (
@@ -145,24 +138,17 @@ export default function RegionalHeatmap() {
       <HeatmapStyles />
       
       {/* FLOATING GLASS UI FILTER */}
-      <div className="absolute top-4 left-4 z-[1000] flex flex-col gap-2 bg-white/70 backdrop-blur-xl p-2 rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.08)] border border-white/80 transition-all">
-        <button 
-          onClick={() => setFilterType('all')}
-          className={`px-3 py-2 rounded-lg text-xs font-bold transition-all w-28 text-left flex items-center justify-between ${filterType === 'all' ? 'bg-emerald-800 text-white shadow-md' : 'text-slate-600 hover:bg-white/80 active:scale-[0.98]'}`}
-        >
-          <span>All Cases</span>
-          {filterType === 'all' && <div className="w-1.5 h-1.5 rounded-full bg-emerald-400"></div>}
-        </button>
+      <div className="absolute bottom-4 left-4 z-[1000] flex flex-col gap-2 bg-white/75 backdrop-blur-xl p-2 rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.08)] border border-white/80 transition-all">
         <button 
           onClick={() => setFilterType('highRisk')}
           className={`px-3 py-2 rounded-lg text-xs font-bold transition-all w-28 text-left flex items-center justify-between ${filterType === 'highRisk' ? 'bg-red-600 text-white shadow-md' : 'text-slate-600 hover:bg-white/80 active:scale-[0.98]'}`}
         >
-          <span>High Risk</span>
+          <span>Critical</span>
           {filterType === 'highRisk' && <div className="w-1.5 h-1.5 rounded-full bg-white"></div>}
         </button>
         <button 
           onClick={() => setFilterType('maternal')}
-          className={`px-3 py-2 rounded-lg text-xs font-bold transition-all w-28 text-left flex items-center justify-between ${filterType === 'maternal' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-600 hover:bg-white/80 active:scale-[0.98]'}`}
+          className={`px-3 py-2 rounded-lg text-xs font-bold transition-all w-28 text-left flex items-center justify-between ${filterType === 'maternal' ? 'bg-pink-600 text-white shadow-md' : 'text-slate-600 hover:bg-white/80 active:scale-[0.98]'}`}
         >
           <span>Maternal</span>
           {filterType === 'maternal' && <div className="w-1.5 h-1.5 rounded-full bg-white"></div>}
@@ -186,13 +172,11 @@ export default function RegionalHeatmap() {
            
            // We scale the circle radius slightly based on cases to accentuate hotspots
            // Use a smaller baseline if there are 0 cases
-           let scaleFactor = filterType === 'all' ? 100 : filterType === 'maternal' ? 30 : 40;
+           let scaleFactor = filterType === 'maternal' ? 30 : 30;
            const radius = activeCases === 0 ? 0 : Math.max(8, Math.min(24, 8 + (activeCases / scaleFactor) * 16));
            
            // Highlight color depending on active filter
-           const strokeColor = filterType === 'maternal' ? '#0f766e' : 
-                               filterType === 'highRisk' ? '#7f1d1d' : 
-                               activeCases > 60 ? '#7f1d1d' : '#ef4444';
+           const strokeColor = filterType === 'maternal' ? '#9d174d' : '#7f1d1d';
 
            return (
              <CircleMarker 
@@ -208,8 +192,8 @@ export default function RegionalHeatmap() {
                <Tooltip className="village-tooltip" sticky direction="top">
                  <div style={{ textAlign: 'center' }}>
                    <div style={{ fontSize: '14px', fontWeight: '700', marginBottom: '4px' }}>{village.name}</div>
-                   <div style={{ fontSize: '12px', color: filterType === 'maternal' ? '#0f766e' : filterType === 'highRisk' ? '#b91c1c' : activeCases > 60 ? '#b91c1c' : '#475569' }}>
-                     <strong>{activeCases}</strong> {filterType === 'maternal' ? 'maternal tracks' : filterType === 'highRisk' ? 'critical risks' : 'total cases'}
+                   <div style={{ fontSize: '12px', color: filterType === 'maternal' ? '#be185d' : '#b91c1c' }}>
+                     <strong>{activeCases}</strong> {filterType === 'maternal' ? 'maternal tracks' : 'critical risks'}
                    </div>
                  </div>
                </Tooltip>
