@@ -1,6 +1,7 @@
 import User from '../models/User.js';
 import jwt from 'jsonwebtoken';
 import { generateRandomOTP } from '../utils/otp.js';
+import { sendSMS } from '../integrations/twilio.js';
 
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET || 'your_fallback_secret_key', {
@@ -9,15 +10,17 @@ const generateToken = (id) => {
 };
 
 export const sendOTP = async (phone) => {
-  // Find or create user? (Hackathon ease)
-  // Let's check if the ASHA user exists
-  let user = await User.findOne({ phone });
+  // Use strictly clean phone for lookup to handle +91 consistency
+  const cleanPhone = phone.replace(/\s/g, ''); 
+  const formattedPhone = cleanPhone.startsWith('+') ? cleanPhone : `+91${cleanPhone}`;
+
+  let user = await User.findOne({ phone: { $regex: cleanPhone.replace(/^\+91/, '').replace(/^\+/, '') } });
   
   if (!user && process.env.NODE_ENV === 'development') {
-    console.log(`[AUTH DEBUG] Auto-creating ASHA worker for phone number: ${phone} (Development mode)`);
+    console.log(`[AUTH DEBUG] Auto-creating ASHA worker for phone number: ${formattedPhone}`);
     user = await User.create({
       name: 'Test ASHA Worker',
-      phone,
+      phone: formattedPhone,
       region: 'Development Region',
       role: 'ASHA'
     });
@@ -34,16 +37,34 @@ export const sendOTP = async (phone) => {
   user.otpExpires = otpExpires;
   await user.save();
 
-  // In real implementation, send via Twilio here
-  // For now, return it (to help testing on postman)
-  console.log(`[OTP DEBUG] Sent OTP ${otp} to ${phone}`);
-  return { otp, message: 'OTP sent to mobile number' };
+  // Send the real SMS via Twilio
+  try {
+    const message = `Namaste! Your Swasthya Sathi login OTP is: ${otp}. Valid for 10 minutes.`;
+    await sendSMS(formattedPhone, message);
+    console.log(`[OTP] Twilio SMS successfully sent to ${formattedPhone}`);
+  } catch (err) {
+    console.error(`[OTP ERROR] Failed to send SMS to ${formattedPhone}:`, err.message);
+    // In development, we don't throw so user can still see it in logs
+    if (process.env.NODE_ENV !== 'development') {
+      throw new Error('Failed to deliver OTP message via SMS. Please check phone number.');
+    }
+  }
+
+  console.log(`[OTP DEBUG] Generated OTP ${otp} for ${formattedPhone}`);
+  return { 
+    message: 'OTP sent to mobile number', 
+    otp: process.env.NODE_ENV === 'development' ? otp : undefined // only expose in dev
+  };
 };
 
 export const loginWithOTP = async (phone, otp) => {
+  // Use the same clean phone and formatted phone pattern as sendOTP
+  const cleanPhone = phone.replace(/\s/g, ''); 
+  const regexPattern = cleanPhone.replace(/^\+91/, '').replace(/^\+/, '');
+
   const user = await User.findOne({
-    phone,
-    otp,
+    phone: { $regex: regexPattern },
+    otp: otp.toString(),
     otpExpires: { $gt: Date.now() },
   });
 
