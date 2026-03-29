@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import { useLanguage } from './language-context';
 import { getStoredToken } from './auth-utils';
 import { enqueueAction, isOfflineError } from './sync-utils';
+import QRCode from 'qrcode';
 export default function AddPatient() {
   const navigate = useNavigate();
   const { language: appLanguage } = useLanguage();
@@ -116,7 +117,7 @@ export default function AddPatient() {
     age: '',
     gender: '',
     phone: '',
-    ward: '',
+    ward: 'Ward 1',
     address: '',
     category: '',
     notes: '',
@@ -194,8 +195,9 @@ export default function AddPatient() {
         if (isOfflineError(networkError)) {
           console.warn("Offline detected. Queueing Patient Creation.");
           patientId = enqueueAction('CREATE_PATIENT', patientPayload);
-          // Fallback UI QR for offline mode
-          setQrCodeUrl(`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${patientId}`);
+          // Generate QR locally using qrcode package
+          const localQr = await QRCode.toDataURL(String(patientId), { width: 200, margin: 2 });
+          setQrCodeUrl(localQr);
         } else {
           throw networkError; // Re-throw if it wasn't a network issue
         }
@@ -205,9 +207,10 @@ export default function AddPatient() {
       console.error("Error generating/saving QR:", error);
       alert("Backend Sync Failed: Ensure your server is running and .env is correct. Reverting to local mock for demo.");
       
-      // Fallback for demo
+      // Fallback for demo — generate QR locally
       const mockId = `SS-${Math.floor(100000 + Math.random() * 900000)}`;
-      setQrCodeUrl(`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${mockId}`);
+      const fallbackQr = await QRCode.toDataURL(mockId, { width: 200, margin: 2 });
+      setQrCodeUrl(fallbackQr);
     } finally {
       setIsGeneratingQR(false);
     }

@@ -105,24 +105,24 @@ export default function PatientProfile() {
             'Authorization': `Bearer ${token}`
           }
         });
-        if (response.ok) {
-          const p = await response.json();
-          const nameParts = p.name.split(' ');
-          setPatient({
-            id: p._id,
-            firstName: nameParts[0],
-            lastName: nameParts.slice(1).join(' ') || '',
-            age: p.age,
-            gender: p.gender,
-            phone: p.phone || 'N/A',
-            ward: p.village,
-            category: p.isPregnant ? 'Maternal' : 'General',
-            riskStatus: p.currentRiskLevel.toLowerCase() === 'critical' || p.currentRiskLevel.toLowerCase() === 'high' ? 'red' :
-                p.currentRiskLevel.toLowerCase() === 'medium' ? 'yellow' : 'green',
-            registrationDate: new Date(p.createdAt).toLocaleDateString(),
-            pendingTask: p.pendingTask || 'Routine Checkup'
-          });
-        }
+        if (!response.ok) throw new Error('Patient fetch returned non-OK');
+        const p = await response.json();
+        const nameParts = (p.name || 'Unknown Patient').split(' ');
+        const riskRaw = (p.currentRiskLevel || 'LOW').toLowerCase();
+        setPatient({
+          id: p._id,
+          firstName: nameParts[0],
+          lastName: nameParts.slice(1).join(' ') || '',
+          age: p.age || '--',
+          gender: p.gender || 'Unknown',
+          phone: p.phone || 'N/A',
+          ward: p.village || 'Unassigned',
+          category: p.isPregnant ? 'Maternal' : 'General',
+          riskStatus: (riskRaw === 'critical' || riskRaw === 'high') ? 'red' :
+              riskRaw === 'medium' ? 'yellow' : 'green',
+          registrationDate: p.createdAt ? new Date(p.createdAt).toLocaleDateString() : new Date().toLocaleDateString(),
+          pendingTask: p.pendingTask || 'Routine Checkup'
+        });
       } catch {
         console.error("Patient fetch failed, using fallback mock data.");
         // Fallback for Hackathon demo if Backend is down
