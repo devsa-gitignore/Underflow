@@ -48,7 +48,14 @@ const buildVisit = (patient, ashaId, visitIndex) => {
 };
 
 const getTargetUsers = async () => {
-  return User.find({ role: ROLES.ASHA, phone: /^\+91/ }).sort({ createdAt: 1 }).limit(3);
+  const jash = await User.findOne({ role: ROLES.ASHA, name: 'Jash Nikombhe' });
+  const plus91Users = await User.find({
+    role: ROLES.ASHA,
+    phone: /^\+91/,
+    ...(jash ? { _id: { $ne: jash._id } } : {}),
+  }).sort({ createdAt: 1 }).limit(jash ? 2 : 3);
+
+  return jash ? [jash, ...plus91Users] : plus91Users;
 };
 
 const seedDB = async () => {
@@ -60,7 +67,7 @@ const seedDB = async () => {
     const assignedUsers = await getTargetUsers();
 
     if (assignedUsers.length < 3) {
-      throw new Error('Could not find 3 ASHA users with +91 phone numbers to assign patients to.');
+      throw new Error('Could not find 3 ASHA users to assign patients to.');
     }
 
     await Visit.deleteMany({});
@@ -97,7 +104,7 @@ const seedDB = async () => {
 
     await Visit.insertMany(visitsToInsert);
 
-    console.log(`Inserted ${insertedPatients.length} patients across ${assignedUsers.length} +91 ASHA users`);
+    console.log(`Inserted ${insertedPatients.length} patients across ${assignedUsers.length} ASHA users`);
     assignedUsers.forEach((user, index) => {
       const assignedCount = insertedPatients.filter((patient) => String(patient.ashaId) === String(user._id)).length;
       console.log(`- ${user.name} (${user.phone}): ${assignedCount} patients`);
