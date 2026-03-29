@@ -149,6 +149,25 @@ export default function Layout() {
     }
   };
 
+  const [currentUser, setCurrentUser] = useState(null);
+
+  useEffect(() => {
+    const user = localStorage.getItem('swasthya_user');
+    if (user) {
+      try {
+        setCurrentUser(JSON.parse(user));
+      } catch (e) {
+        console.error("Failed to parse user", e);
+      }
+    }
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('swasthya_token');
+    localStorage.removeItem('swasthya_user');
+    navigate('/login');
+  };
+
   return (
     <div className="h-screen bg-slate-50/50 flex font-inter text-slate-900 overflow-hidden w-full">
       {/* SIDEBAR NAVIGATION (Desktop) */}
@@ -207,16 +226,22 @@ export default function Layout() {
         </nav>
 
         <div className="p-4 border-t border-slate-800">
-          <Link to="/" className="flex items-center gap-3 p-2 hover:bg-slate-800/50 rounded-lg cursor-pointer transition-colors text-white">
-            <div className="w-8 h-8 bg-emerald-600 rounded-full flex items-center justify-center text-xs font-semibold">
-              JN
+          <div className="flex items-center gap-3 p-2 hover:bg-slate-800/50 rounded-lg group transition-colors text-white">
+            <div className="w-8 h-8 bg-emerald-600 rounded-full flex items-center justify-center text-xs font-semibold shadow-inner">
+              {currentUser ? currentUser.name.split(' ').map(n => n[0]).join('') : 'U'}
             </div>
             <div className="flex-1 overflow-hidden">
-              <p className="text-sm font-medium truncate">Jash Nikombhe</p>
-              <p className="text-xs text-slate-400 truncate">AW-1029</p>
+              <p className="text-sm font-bold truncate">{currentUser ? currentUser.name : 'Guest User'}</p>
+              <p className="text-[10px] text-slate-500 font-bold tracking-tight truncate uppercase">{currentUser ? (currentUser.region || 'Village Worker') : 'Access Pending'}</p>
             </div>
-            <LogOut size={16} className="text-slate-500 hover:text-white" />
-          </Link>
+            <button 
+              onClick={handleLogout}
+              className="p-1.5 hover:bg-slate-700 rounded-md text-slate-500 hover:text-white transition-all"
+              title="Logout"
+            >
+              <LogOut size={16} />
+            </button>
+          </div>
         </div>
       </aside>
 

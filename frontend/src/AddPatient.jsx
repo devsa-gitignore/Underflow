@@ -145,9 +145,10 @@ export default function AddPatient() {
   const generateQR = async () => {
     setIsGeneratingQR(true);
     
-    // 1. First, create/sync the patient in the DB if not already done
     try {
-      const token = await getStoredToken();
+      const token = localStorage.getItem('swasthya_token');
+      if (!token) throw new Error("Authentication token missing. Please log in again.");
+
       // Map frontend gender 'F'/'M' to backend 'Female'/'Male'
       const genderMap = { 'F': 'Female', 'M': 'Male', 'O': 'Other' };
       
@@ -157,36 +158,26 @@ export default function AddPatient() {
         gender: genderMap[formData.gender] || 'Female',
         phone: formData.phone,
         village: formData.ward,
-        region: 'Palghar', // Mock region
+        region: 'Palghar', // Default region
         isPregnant: formData.category === 'maternal',
         pendingTask: formData.pendingTask || 'Routine Checkup',
       };
 
-      // Create Patient
-      let patientId;
-      try {
-        const createResponse = await fetch('http://localhost:5000/patients', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify(patientPayload)
-        });
+      console.log("🚀 Creating patient with payload:", patientPayload);
 
-        if (!createResponse.ok) throw new Error("Failed to create patient record");
-        
-        const patient = await createResponse.json();
-        patientId = patient._id;
+      // 1. Create Patient Record in DB
+      const createResponse = await fetch('http://localhost:5000/patients', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(patientPayload)
+      });
 
-        // 2. Now generate the QR code via backend
-        const qrResponse = await fetch(`http://localhost:5000/patients/${patientId}/qr`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
+      const createData = await createResponse.json();
 
+<<<<<<< HEAD
         if (!qrResponse.ok) throw new Error("Failed to generate QR code");
 
         const qrData = await qrResponse.json();
@@ -201,16 +192,50 @@ export default function AddPatient() {
         } else {
           throw networkError; // Re-throw if it wasn't a network issue
         }
+=======
+      if (!createResponse.ok) {
+        console.error("❌ Backend Error:", createData);
+        throw new Error(createData.message || "Failed to create patient record");
+>>>>>>> 9e0737e (feat: implement OTP login, dynamic profile selection, and patient creation fixes)
       }
       
-    } catch (error) {
-      console.error("Error generating/saving QR:", error);
-      alert("Backend Sync Failed: Ensure your server is running and .env is correct. Reverting to local mock for demo.");
+      const patientId = createData._id;
+      console.log("✅ Patient created with ID:", patientId);
+
+      // 2. Now generate the QR code via backend
+      const qrResponse = await fetch(`http://localhost:5000/patients/${patientId}/qr`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const qrData = await qrResponse.json();
+
+      if (!qrResponse.ok) {
+        console.error("❌ QR Error:", qrData);
+        throw new Error(qrData.message || "Failed to generate QR code");
+      }
+
+      setQrCodeUrl(qrData.qrCode); // Backend returns dataURL/Base64
       
+<<<<<<< HEAD
       // Fallback for demo — generate QR locally
       const mockId = `SS-${Math.floor(100000 + Math.random() * 900000)}`;
       const fallbackQr = await QRCode.toDataURL(mockId, { width: 200, margin: 2 });
       setQrCodeUrl(fallbackQr);
+=======
+    } catch (error) {
+      console.error("🛑 Registration Workflow Error:", error);
+      
+      if (isOfflineError(error)) {
+        console.warn("🌐 Offline detected. Action queued for sync.");
+        const localId = enqueueAction('CREATE_PATIENT', patientPayload);
+        setQrCodeUrl(`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${localId}`);
+      } else {
+        alert(`Integration Error: ${error.message}`);
+      }
+>>>>>>> 9e0737e (feat: implement OTP login, dynamic profile selection, and patient creation fixes)
     } finally {
       setIsGeneratingQR(false);
     }
@@ -377,6 +402,7 @@ export default function AddPatient() {
                     name="ward" value={formData.ward} onChange={handleInputChange}
                     className={`${fieldClassName} font-medium`}
                   >
+                    <option value="" disabled>Select Village / Ward</option>
                     <option value="Ward 1">Ward 1 (North Block)</option>
                     <option value="Ward 2">Ward 2 (East Block)</option>
                     <option value="Ward 4">Ward 4 (Central Block)</option>
