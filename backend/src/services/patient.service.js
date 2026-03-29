@@ -2,10 +2,14 @@ import Patient from '../models/Patient.js';
 import { generatePatientQR as createQRDataURL } from '../utils/generateQR.js';
 
 export const createPatient = async (patientData, ashaId) => {
-  const patient = await Patient.create({
+  // Ensure required fields like village are present and not empty strings
+  const cleanedData = {
     ...patientData,
-    ashaId,
-  });
+    village: (patientData.village && patientData.village.trim() !== '') ? patientData.village : 'Mankhurd Ward',
+    ashaId
+  };
+
+  const patient = await Patient.create(cleanedData);
   return patient;
 };
 

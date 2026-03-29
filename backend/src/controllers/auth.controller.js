@@ -66,7 +66,10 @@ export const devToken = asyncHandler(async (req, res) => {
 // @route   GET /auth/workers
 // @access  Public
 export const getWorkers = asyncHandler(async (req, res) => {
-  const workers = await User.find({ role: 'ASHA' }).select('-otp -otpExpires -__v');
+  const workers = await User.find({ role: 'ASHA' })
+    .select('-otp -otpExpires -__v')
+    .sort({ name: 1 });
+    
   res.status(200).json({
     success: true,
     data: workers
