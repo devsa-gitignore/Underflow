@@ -2,7 +2,7 @@ import connectDB from './src/config/db.js';
 import app from './src/app.js';
 import dotenv from 'dotenv';
 import { startFollowUpJob } from './src/jobs/followup.job.js';
-// import './src/workers/translation.worker.js'; // Initialize the async worker - disabled (bullmq not installed)
+import './src/workers/translation.worker.js';
 
 dotenv.config();
 

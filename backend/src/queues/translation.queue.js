@@ -1,20 +1,28 @@
 let translationQueue = null;
 let translationQueueAvailable = false;
 
+import { getRedisConnectionConfig } from '../config/redis.js';
+
 try {
   const { Queue } = await import('bullmq');
+  const redisConfig = getRedisConnectionConfig();
 
-  const redisConnection = {
-    host: '127.0.0.1',
-    port: 6379,
-  };
+  if (!redisConfig.enabled) {
+    console.warn(redisConfig.reason);
+  } else {
+    translationQueue = new Queue('translation', {
+      connection: redisConfig.connection,
+    });
+    translationQueueAvailable = true;
 
-  translationQueue = new Queue('translation', {
-    connection: redisConnection,
-  });
-  translationQueueAvailable = true;
-} catch {
-  console.warn('BullMQ is not installed. Translation queue will run in fallback mode.');
+    translationQueue.on('error', (err) => {
+      console.error(`Translation queue Redis error: ${err.message}`);
+    });
+
+    console.log(`Translation queue enabled using ${redisConfig.source}.`);
+  }
+} catch (err) {
+  console.warn(`BullMQ queue not started. Falling back to inline translation. ${err.message}`);
 }
 
 export { translationQueue, translationQueueAvailable };
