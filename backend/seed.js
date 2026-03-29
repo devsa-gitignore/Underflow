@@ -2,9 +2,54 @@ import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import User from './src/models/User.js';
 import Patient from './src/models/Patient.js';
-import { GENDER, RISK_LEVELS } from './src/config/constants.js';
+import Visit from './src/models/Visit.js';
+import { GENDER, RISK_LEVELS, ROLES } from './src/config/constants.js';
 
 dotenv.config();
+
+const BASE_PATIENTS = [
+  { name: 'Aarti Sharma', age: 27, gender: GENDER.FEMALE, village: 'Ward 1', region: 'Palghar', risk: RISK_LEVELS.MEDIUM, isPregnant: true, pendingTask: 'Maternal Follow-up' },
+  { name: 'Pooja Patel', age: 24, gender: GENDER.FEMALE, village: 'Ward 2', region: 'Palghar', risk: RISK_LEVELS.HIGH, isPregnant: true, pendingTask: 'High Risk monitoring' },
+  { name: 'Rahul Kumar', age: 6, gender: GENDER.MALE, village: 'Ward 3', region: 'Palghar', risk: RISK_LEVELS.LOW, isPregnant: false, pendingTask: 'Vaccination' },
+  { name: 'Sunita Devi', age: 34, gender: GENDER.FEMALE, village: 'Ward 4', region: 'Palghar', risk: RISK_LEVELS.MEDIUM, isPregnant: false, pendingTask: 'Routine Checkup' },
+  { name: 'Meena Kumari', age: 31, gender: GENDER.FEMALE, village: 'Ward 5', region: 'Palghar', risk: RISK_LEVELS.HIGH, isPregnant: false, pendingTask: 'High Risk monitoring' },
+  { name: 'Kishan Joshi', age: 42, gender: GENDER.MALE, village: 'Ward 1', region: 'Palghar', risk: RISK_LEVELS.LOW, isPregnant: false, pendingTask: 'Routine Checkup' },
+];
+
+const getPhoneNumber = (index) => `+91 90000000${(10 + index).toString().padStart(2, '0')}`;
+
+const buildVisit = (patient, ashaId, visitIndex) => {
+  const visitDate = new Date();
+  visitDate.setDate(visitDate.getDate() - (visitIndex + 1) * 5);
+
+  const bloodPressureByRisk = {
+    [RISK_LEVELS.CRITICAL]: '168/108',
+    [RISK_LEVELS.HIGH]: '150/96',
+    [RISK_LEVELS.MEDIUM]: '136/88',
+    [RISK_LEVELS.LOW]: '118/78',
+  };
+
+  return {
+    patientId: patient._id,
+    ashaId,
+    symptoms: patient.isPregnant ? ['Fatigue', 'Back pain'] : ['Routine follow-up'],
+    notes: `${patient.name} completed a scheduled ${patient.pendingTask.toLowerCase()} visit.`,
+    vitals: {
+      temperature: 98.4,
+      bloodPressure: bloodPressureByRisk[patient.currentRiskLevel] || '120/80',
+      weight: patient.age < 12 ? 22 + visitIndex : 52 + visitIndex * 2,
+    },
+    riskLevel: patient.currentRiskLevel,
+    aiSuggestion: patient.currentRiskLevel === RISK_LEVELS.HIGH || patient.currentRiskLevel === RISK_LEVELS.CRITICAL
+      ? 'Refer to PHC and maintain close monitoring.'
+      : 'Continue routine monitoring and follow-up.',
+    visitDate,
+  };
+};
+
+const getTargetUsers = async () => {
+  return User.find({ role: ROLES.ASHA, phone: /^\+91/ }).sort({ createdAt: 1 }).limit(3);
+};
 
 const seedDB = async () => {
   try {
@@ -12,134 +57,60 @@ const seedDB = async () => {
     await mongoose.connect(mongoUri);
     console.log('Connected to DB');
 
-    // 1. Create or Find ASHA worker Jash Nikombhe
-    const ashaData = {
-      name: 'Jash Nikombhe',
-      phone: '9876543210',
-      region: 'Palghar',
-      role: 'ASHA',
-      isVerified: true
-    };
+    const assignedUsers = await getTargetUsers();
 
-    let asha = await User.findOne({ phone: ashaData.phone });
-    if (!asha) {
-      asha = await User.create(ashaData);
-      console.log('ASHA worker Jash Nikombhe created successfully');
-    } else {
-      // Update name just in case it was "Ravi Kumar"
-      asha.name = 'Jash Nikombhe';
-      await asha.save();
-      console.log('ASHA worker Jash Nikombhe already exists (updated)');
+    if (assignedUsers.length < 3) {
+      throw new Error('Could not find 3 ASHA users with +91 phone numbers to assign patients to.');
     }
 
-    // 1.5 Generate 9 more ASHA workers to total 10
-    const extraNames = ['Priya Patel', 'Sunita Devi', 'Meena Kumari', 'Kavita Singh', 'Anjali Desai', 'Neha Gupta', 'Rani Mukerji', 'Ankita Lokhande', 'Swara Bhaskar'];
-    const extraWards = ['Ward 1', 'Ward 2', 'Ward 3', 'Ward 4', 'Ward 5'];
-    
-    await User.deleteMany({ role: 'ASHA', phone: { $ne: '9876543210' } }); // clear old extra workers
-    const additionalWorkers = extraNames.map((name, idx) => ({
-      name,
-      phone: `987650000${idx}`,
-      region: extraWards[Math.floor(Math.random() * extraWards.length)],
-      role: 'ASHA',
-      isVerified: true
-    }));
-    await User.insertMany(additionalWorkers);
-    console.log(`Created 9 extra ASHA workers`);
+    await Visit.deleteMany({});
+    await Patient.deleteMany({});
+    console.log('Cleared all existing patients and visits');
 
-    // 2. Clear existing test patients (Optional, but good for a fresh 10)
-    await Patient.deleteMany({ ashaId: asha._id });
+    const patientsToInsert = BASE_PATIENTS.map((patient, index) => {
+      const assignedUser = assignedUsers[Math.floor(index / 2)];
+      const qrToken = `SS-${String(index + 1).padStart(3, '0')}-${assignedUser._id.toString().slice(-4)}`;
 
-    // 3. Generate 10 random patients
-    const firstNames = ['Aarti', 'Pooja', 'Sunita', 'Rahul', 'Meena', 'Kishan', 'Ramesh', 'Sita', 'Gita', 'Anil', 'Vikram', 'Neha'];
-    const lastNames = ['Sharma', 'Patel', 'Devi', 'Kumar', 'Kumari', 'Lal', 'Rao', 'Singh', 'Gupta', 'Joshi'];
-    const villages = ['Ward 1', 'Ward 2', 'Ward 4', 'Ward 5'];
-    
-    const patientsToInsert = [];
+      return {
+        name: patient.name,
+        age: patient.age,
+        gender: patient.gender,
+        phone: getPhoneNumber(index),
+        village: patient.village,
+        region: patient.region,
+        ashaId: assignedUser._id,
+        qrCode: `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${qrToken}`,
+        currentRiskLevel: patient.risk,
+        isPregnant: patient.isPregnant,
+        pendingTask: patient.pendingTask,
+      };
+    });
 
-    for (let i = 0; i < 10; i++) {
-      const isFemale = Math.random() > 0.4; // 60% female
-      const fName = firstNames[Math.floor(Math.random() * (isFemale ? 6 : 6) + (isFemale ? 0 : 5))]; 
-      // Just grab a random name, logic isn't perfect but fine for mock
-      const lName = lastNames[Math.floor(Math.random() * lastNames.length)];
-      
-      const randomRisk = Object.values(RISK_LEVELS)[Math.floor(Math.random() * 4)];
-      const randomAge = Math.floor(Math.random() * 60) + 1; // 1 to 60
-      const genId = `SS-${Math.floor(100000 + Math.random() * 900000)}`;
+    const insertedPatients = await Patient.insertMany(patientsToInsert);
 
-      patientsToInsert.push({
-        name: `${fName} ${lName}`,
-        age: randomAge,
-        gender: isFemale ? GENDER.FEMALE : GENDER.MALE,
-        phone: `+91 ${Math.floor(6000000000 + Math.random() * 3999999999)}`,
-        village: villages[Math.floor(Math.random() * villages.length)],
-        region: 'Palghar',
-        ashaId: asha._id,
-        // Mock a DB object ID or use random string for QR, wait Patient schema doesn't require QR but it's good to have
-        qrCode: `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${genId}`,
-        currentRiskLevel: randomRisk,
-        isPregnant: isFemale && randomAge > 18 && randomAge < 45 && Math.random() > 0.6,
-        pendingTask: isFemale && Math.random() > 0.6 ? 'Maternal Follow-up' : 
-                     randomRisk === 'CRITICAL' || randomRisk === 'HIGH' ? 'High Risk monitoring' :
-                     Math.random() > 0.5 ? 'Vaccination' : 'Routine Checkup',
-      });
-    }
+    const visitsToInsert = insertedPatients.flatMap((patient, index) => {
+      return [
+        buildVisit(patient, patient.ashaId, 0),
+        buildVisit(patient, patient.ashaId, 1 + (index % 2)),
+      ];
+    });
 
-    const inserted = await Patient.insertMany(patientsToInsert);
-    console.log(`Successfully inserted ${inserted.length} mock patients for Jash Nikombhe`);
+    await Visit.insertMany(visitsToInsert);
 
-    // 4. Seed Visit History for each patient
-    const Visit = (await import('./src/models/Visit.js')).default;
-    await Visit.deleteMany({ ashaId: asha._id });
-
-    const symptomPool = [
-      ['Mild fatigue', 'Occasional backache'],
-      ['Severe Headaches', 'Swelling in hands/face'],
-      ['Fever', 'Body aches', 'Cough'],
-      ['No symptoms'],
-      ['Low appetite', 'Nausea'],
-      ['Dizziness', 'Blurred vision'],
-    ];
-    const notePool = [
-      'Routine checkup completed. Patient vitals stable. Advised to continue current medication.',
-      'ANC follow-up visit. Fetal development normal. Iron supplementation provided for 30 days.',
-      'Patient reported mild symptoms. BP slightly elevated. Advised rest and low-sodium diet.',
-      'Vaccination administered as per schedule. No adverse reactions observed.',
-      'High-risk monitoring visit. Referred to PHC for further assessment based on vitals.',
-      'Growth monitoring completed. Weight and height within normal range for age.',
-    ];
-    const bpOptions = ['120/80', '130/85', '140/90', '110/70', '160/100', '135/88'];
-
-    const visitsToInsert = [];
-    for (const patient of inserted) {
-      const numVisits = Math.floor(Math.random() * 3) + 1; // 1-3 visits
-      for (let v = 0; v < numVisits; v++) {
-        const daysAgo = Math.floor(Math.random() * 90) + 1;
-        visitsToInsert.push({
-          patientId: patient._id,
-          ashaId: asha._id,
-          symptoms: symptomPool[Math.floor(Math.random() * symptomPool.length)],
-          notes: notePool[Math.floor(Math.random() * notePool.length)],
-          vitals: {
-            temperature: +(97 + Math.random() * 3).toFixed(1),
-            bloodPressure: bpOptions[Math.floor(Math.random() * bpOptions.length)],
-            weight: Math.floor(40 + Math.random() * 40),
-          },
-          riskLevel: patient.currentRiskLevel,
-          visitDate: new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000),
-        });
-      }
-    }
-    const insertedVisits = await Visit.insertMany(visitsToInsert);
-    console.log(`Successfully inserted ${insertedVisits.length} mock visits`);
-
+    console.log(`Inserted ${insertedPatients.length} patients across ${assignedUsers.length} +91 ASHA users`);
+    assignedUsers.forEach((user, index) => {
+      const assignedCount = insertedPatients.filter((patient) => String(patient.ashaId) === String(user._id)).length;
+      console.log(`- ${user.name} (${user.phone}): ${assignedCount} patients`);
+      const patientSlice = insertedPatients.slice(index * 2, index * 2 + 2).map((patient) => patient.name).join(', ');
+      console.log(`  Patients: ${patientSlice}`);
+    });
   } catch (error) {
     console.error('Error seeding data:', error);
+    process.exitCode = 1;
   } finally {
     await mongoose.disconnect();
     console.log('Disconnected from DB');
   }
-
 };
 
 seedDB();
