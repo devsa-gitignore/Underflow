@@ -1,12 +1,263 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Users, Map, AlertTriangle, TrendingUp, Download, 
-  Activity, Clock, Shield, Search, Bell, Settings, 
-  LogOut, ChevronRight, UserCheck, MapPin, MoreVertical, CheckCircle2, RefreshCw
+  Activity, Clock, Shield, Search, Bell,
+  LogOut, ChevronRight, UserCheck, MoreVertical, CheckCircle2, RefreshCw,
+  CreditCard, Scan, X, Trash2, Phone, MapPin, Briefcase, UserPlus, Upload
 } from 'lucide-react';
 import IndiaHeatmap from './components/IndiaHeatmap';
 import { getStoredToken } from './auth-utils';
 import { Link } from 'react-router-dom';
+
+// ── Animated counter hook ──────────────────────────────────────────────────
+function useCountUp(target, duration = 1200, startOnMount = true) {
+  const [count, setCount] = useState(0);
+  const started = useRef(false);
+  const start = useCallback(() => {
+    if (started.current) return;
+    started.current = true;
+    const startTime = performance.now();
+    const tick = (now) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      // ease-out cubic
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setCount(Math.round(eased * target));
+      if (progress < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }, [target, duration]);
+  useEffect(() => { if (startOnMount) start(); }, [start, startOnMount]);
+  return [count, start];
+}
+
+// ── Animated stat card  ───────────────────────────────────────────────────
+function AnimatedStat({ label, value, suffix = '', color = 'text-slate-900' }) {
+  const [count] = useCountUp(value, 1000);
+  return (
+    <div className="flex flex-col">
+      <span className={`text-2xl font-black ${color}`}>{count}{suffix}</span>
+      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mt-0.5">{label}</span>
+    </div>
+  );
+}
+
+// ── Aadhaar scan modal ─────────────────────────────────────────────────────
+const AADHAAR_DATA = {
+  name: 'Ritwik Harshal Satghare',
+  phone: '7738738818',
+  region: 'Mumbai Suburban',
+  aadhaar: '4521 8834 9921',
+  dob: '14 Aug 2004',
+  gender: 'Male',
+  address: 'Flat 302, Shanti Nagar, Andheri East, Mumbai - 400069',
+};
+
+function AadhaarModal({ onClose, onConfirm }) {
+  const [step, setStep] = useState('scan'); // 'scan' | 'scanning' | 'preview' | 'assigning' | 'done'
+  const [assignedStats, setAssignedStats] = useState({ patients: 0, tasks: 0, alerts: 0 });
+
+  const fileInputRef = useRef(null);
+
+  const handleScan = () => {
+    setStep('scanning');
+    setTimeout(() => setStep('preview'), 2200);
+  };
+
+  const handleFileChange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      handleScan();
+    }
+  };
+
+  const handleConfirm = () => {
+    setStep('assigning');
+    setTimeout(() => {
+      setAssignedStats({ patients: 47, tasks: 12, alerts: 3 });
+      setStep('done');
+    }, 1800);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md relative overflow-hidden">
+        {/* header */}
+        <div className="bg-gradient-to-r from-blue-700 to-blue-500 px-6 py-5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center">
+              <CreditCard size={18} className="text-white" />
+            </div>
+            <div>
+              <h2 className="text-white font-bold text-base">Aadhaar Verification</h2>
+              <p className="text-blue-200 text-xs font-medium">ASHA Worker Onboarding</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-white/70 hover:text-white transition-colors">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="p-6">
+          {/* STEP 1 — scan prompt */}
+          {step === 'scan' && (
+            <div className="text-center py-6">
+              <div className="w-20 h-20 bg-blue-50 rounded-2xl mx-auto mb-5 flex items-center justify-center border-2 border-dashed border-blue-200">
+                <Scan size={36} className="text-blue-400" />
+              </div>
+              <h3 className="font-bold text-slate-900 text-lg mb-2">Verify Aadhaar Card</h3>
+              <p className="text-sm text-slate-500 font-medium mb-6 max-w-xs mx-auto">
+                Scan the card or upload a photo from your device to auto-fetch details from UIDAI.
+              </p>
+              
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                onChange={handleFileChange} 
+                className="hidden" 
+                accept="image/*,.pdf" 
+              />
+
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={handleScan}
+                  className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-sm shadow-blue-200 flex items-center justify-center gap-2"
+                >
+                  <Scan size={16} /> Scan Aadhaar Now
+                </button>
+                
+                <button
+                  onClick={() => fileInputRef.current.click()}
+                  className="w-full py-3 bg-white border-2 border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-50 transition-colors flex items-center justify-center gap-2"
+                >
+                  <Upload size={16} /> Upload Aadhaar Photo
+                </button>
+              </div>
+              
+              <p className="text-xs text-slate-400 mt-5">Secured by UIDAI • 256-bit encrypted</p>
+            </div>
+          )}
+
+          {/* STEP — scanning */}
+          {step === 'scanning' && (
+            <div className="text-center py-10">
+              <div className="relative w-20 h-20 mx-auto mb-5">
+                <div className="w-20 h-20 rounded-full border-4 border-blue-100 border-t-blue-500 animate-spin" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Scan size={24} className="text-blue-500" />
+                </div>
+              </div>
+              <p className="font-bold text-slate-900 text-base mb-1">Reading Aadhaar…</p>
+              <p className="text-sm text-slate-400 font-medium">Connecting to UIDAI Verification Portal</p>
+              <div className="mt-5 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                <div className="h-full bg-blue-500 rounded-full animate-[scan_2.2s_ease-in-out_forwards]" style={{width: '100%', animation: 'none', background: 'linear-gradient(90deg,#3b82f6,#6366f1)', maskImage: 'linear-gradient(90deg,#000 var(--p,0%),transparent var(--p,0%))'}} />
+              </div>
+            </div>
+          )}
+
+          {/* STEP — preview details */}
+          {step === 'preview' && (
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center">
+                  <CheckCircle2 size={12} className="text-white" />
+                </div>
+                <p className="text-sm font-bold text-emerald-600">Aadhaar Verified Successfully</p>
+              </div>
+
+              {/* ID card preview */}
+              <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl p-4 mb-5 text-white relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-full -translate-y-6 translate-x-6" />
+                <div className="absolute bottom-0 left-0 w-16 h-16 bg-indigo-500/10 rounded-full translate-y-4 -translate-x-4" />
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">Government of India • UIDAI</p>
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-14 bg-slate-700 rounded-lg flex items-center justify-center shrink-0">
+                    <span className="text-lg font-black text-white">{AADHAAR_DATA.name.split(' ').map(n=>n[0]).join('')}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-black text-white text-base leading-tight">{AADHAAR_DATA.name}</p>
+                    <p className="text-slate-400 text-xs mt-1">{AADHAAR_DATA.dob} • {AADHAAR_DATA.gender}</p>
+                    <p className="text-slate-300 text-xs mt-2 font-mono tracking-wider">{AADHAAR_DATA.aadhaar}</p>
+                  </div>
+                </div>
+                <p className="text-slate-400 text-[10px] mt-3 line-clamp-1">{AADHAAR_DATA.address}</p>
+              </div>
+
+              {/* Details rows */}
+              <div className="space-y-2.5 mb-5">
+                {[
+                  { Icon: Users,    label: 'Full Name', value: AADHAAR_DATA.name },
+                  { Icon: Phone,    label: 'Mobile', value: AADHAAR_DATA.phone },
+                  { Icon: MapPin,   label: 'Region', value: AADHAAR_DATA.region },
+                ].map(({ Icon, label, value }) => (
+                  <div key={label} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                    <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center shrink-0">
+                      <Icon size={14} className="text-blue-500" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{label}</p>
+                      <p className="text-sm font-bold text-slate-900">{value}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <button
+                onClick={handleConfirm}
+                className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-sm flex items-center justify-center gap-2"
+              >
+                <UserPlus size={16} /> Confirm & Register Worker
+              </button>
+            </div>
+          )}
+
+          {/* STEP — assigning */}
+          {step === 'assigning' && (
+            <div className="text-center py-10">
+              <div className="relative w-20 h-20 mx-auto mb-5">
+                <div className="w-20 h-20 rounded-full border-4 border-emerald-100 border-t-emerald-500 animate-spin" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Briefcase size={24} className="text-emerald-500" />
+                </div>
+              </div>
+              <p className="font-bold text-slate-900 text-base mb-1">Assigning Patients & Tasks…</p>
+              <p className="text-sm text-slate-400 font-medium">Distributing workload from Mumbai Suburban district</p>
+            </div>
+          )}
+
+          {/* STEP — done */}
+          {step === 'done' && (
+            <div className="text-center">
+              <div className="w-16 h-16 bg-emerald-50 rounded-full mx-auto mb-4 flex items-center justify-center border-2 border-emerald-200">
+                <CheckCircle2 size={32} className="text-emerald-500" />
+              </div>
+              <h3 className="font-black text-slate-900 text-lg mb-1">{AADHAAR_DATA.name.split(' ')[0]} is Onboarded!</h3>
+              <p className="text-sm text-slate-500 font-medium mb-6">Worker profile created and tasks assigned.</p>
+
+              <div className="grid grid-cols-3 gap-3 mb-6">
+                {[
+                  { label: 'Patients', val: assignedStats.patients, color: 'text-blue-600', bg: 'bg-blue-50 border-blue-200' },
+                  { label: 'Tasks',    val: assignedStats.tasks,    color: 'text-amber-600', bg: 'bg-amber-50 border-amber-200' },
+                  { label: 'Alerts',   val: assignedStats.alerts,   color: 'text-red-600',  bg: 'bg-red-50 border-red-200' },
+                ].map(({ label, val, color, bg }) => (
+                  <div key={label} className={`rounded-xl border p-3 ${bg}`}>
+                    <AnimatedStat label={label} value={val} color={color} />
+                  </div>
+                ))}
+              </div>
+
+              <button
+                onClick={() => onConfirm(AADHAAR_DATA)}
+                className="w-full py-3 bg-emerald-500 text-white font-bold rounded-xl hover:bg-emerald-600 transition-colors shadow-sm"
+              >
+                Done
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // Reusing our Magic Bento component for that premium SaaS glow
 function MagicBento({ children, className = "", glowColor = "16, 185, 129" }) {
@@ -54,8 +305,10 @@ export default function AdminDashboard() {
   const [activeView, setActiveView] = useState('commandCenter');
 
   const [fieldWorkers, setFieldWorkers] = useState([]);
+  const [showAadhaar, setShowAadhaar] = useState(false);
   const [aiAlerts, setAiAlerts] = useState(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const [removingId, setRemovingId] = useState(null);
 
   const [dashboardStats, setDashboardStats] = useState({
     totalPatients: 0,
@@ -96,10 +349,12 @@ export default function AdminDashboard() {
              const mapped = result.data.map((w, idx) => ({
                 id: w._id || `AW-77${idx}`,
                 name: w.name,
-                ward: w.region || "Ward 4",
-                status: Math.random() > 0.3 ? "online" : "offline",
-                lastSync: Math.random() > 0.3 ? "Just now" : "2 hrs ago",
+                ward: w.region || 'Ward 4',
+                phone: w.phone || '—',
+                status: Math.random() > 0.3 ? 'online' : 'offline',
+                lastSync: Math.random() > 0.3 ? 'Just now' : '2 hrs ago',
                 cases: Math.floor(Math.random() * 200) + 50,
+                tasks: Math.floor(Math.random() * 20) + 5,
                 critical: Math.floor(Math.random() * 10)
              }));
              setFieldWorkers(mapped);
@@ -575,16 +830,16 @@ export default function AdminDashboard() {
                       <p className="text-sm text-slate-500 font-medium">Manage and monitor your assigned ASHA worker roster.</p>
                     </div>
                     <div className="flex gap-3">
-                      <button className="bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-slate-50 transition-colors shadow-sm">
-                        Filter by Ward
-                      </button>
-                      <button className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm">
-                        + Add Worker
+                      <button
+                        onClick={() => setShowAadhaar(true)}
+                        className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm flex items-center gap-2"
+                      >
+                        <UserPlus size={15} /> Add Worker
                       </button>
                     </div>
                   </div>
 
-                  {/* Clean Data Table for Field Workers */}
+                  {/* Roster table */}
                   <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
                     <div className="px-6 py-4 border-b border-blue-100 bg-blue-50/45 flex justify-between items-center">
                       <h3 className="font-bold text-slate-800 flex items-center gap-2">
@@ -592,79 +847,94 @@ export default function AdminDashboard() {
                       </h3>
                       <span className="text-xs font-bold text-blue-700 uppercase bg-blue-100 px-2 py-1 rounded">Total: {fieldWorkers.length}</span>
                     </div>
-                    
+
                     <div className="overflow-x-auto">
                       <table className="w-full text-left border-collapse">
                         <thead>
                           <tr className="bg-white text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
-                            <th className="px-6 py-4 font-semibold">Worker Details</th>
-                            <th className="px-6 py-4 font-semibold">Assigned Ward</th>
-                            <th className="px-6 py-4 font-semibold">Network Status</th>
-                            <th className="px-6 py-4 font-semibold">Patient Load</th>
+                            <th className="px-6 py-4 font-semibold">Worker</th>
+                            <th className="px-6 py-4 font-semibold">Region</th>
+                            <th className="px-6 py-4 font-semibold">Status</th>
+                            <th className="px-6 py-4 font-semibold">Patients</th>
+                            <th className="px-6 py-4 font-semibold">Tasks</th>
+                            <th className="px-6 py-4 font-semibold">Critical</th>
                             <th className="px-6 py-4 font-semibold text-right">Actions</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
+                          {fieldWorkers.length === 0 && (
+                            <tr><td colSpan={7} className="px-6 py-10 text-center text-sm text-slate-400 font-semibold">No workers registered yet.</td></tr>
+                          )}
                           {fieldWorkers.map((worker) => (
-                            <tr key={worker.id} className="hover:bg-slate-50 transition-colors group">
-                              {/* Worker Details Column */}
+                            <tr key={worker.id} className={`hover:bg-slate-50 transition-colors group ${removingId === worker.id ? 'opacity-0 scale-95 pointer-events-none' : ''}`}
+                              style={{ transition: 'opacity 0.35s, transform 0.35s' }}>
+                              {/* Worker Details */}
                               <td className="px-6 py-4">
                                 <div className="flex items-center gap-3">
-                                  <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-600 font-bold flex items-center justify-center">
-                                    {worker.name.split(' ').map(n=>n[0]).join('')}
+                                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-bold flex items-center justify-center text-sm shadow-sm">
+                                    {worker.name.split(' ').map(n=>n[0]).join('').slice(0,2)}
                                   </div>
                                   <div>
                                     <p className="text-sm font-bold text-slate-900">{worker.name}</p>
-                                    <p className="text-xs font-medium text-slate-500">ID: {worker.id}</p>
+                                    <p className="text-xs font-medium text-slate-400 flex items-center gap-1"><Phone size={9}/> {worker.phone || '—'}</p>
                                   </div>
                                 </div>
                               </td>
 
-                              {/* Ward Column */}
+                              {/* Region */}
                               <td className="px-6 py-4">
-                                <span className="text-sm font-semibold text-slate-700">{worker.ward}</span>
+                                <span className="text-sm font-semibold text-slate-700 flex items-center gap-1"><MapPin size={12} className="text-slate-400"/>{worker.ward}</span>
                               </td>
 
-                              {/* Status Column */}
+                              {/* Status */}
                               <td className="px-6 py-4">
-                                <div>
-                                  {worker.status === 'online' ? (
-                                    <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded border border-emerald-200">
-                                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Online
-                                    </span>
-                                  ) : (
-                                    <span className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded border border-slate-200">
-                                      <span className="w-2 h-2 rounded-full bg-slate-400"></span> Offline
-                                    </span>
-                                  )}
-                                  <p className="text-[11px] font-medium text-slate-500 mt-1 flex items-center gap-1">
-                                    <Clock size={10} /> Sync: {worker.lastSync}
-                                  </p>
-                                </div>
-                              </td>
-
-                              {/* Patient Load Column */}
-                              <td className="px-6 py-4">
-                                <div className="flex flex-col gap-1">
-                                  <span className="text-sm font-semibold text-slate-700">
-                                    {worker.cases} Total Managed
+                                {worker.status === 'online' ? (
+                                  <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Online
                                   </span>
-                                  {worker.critical > 0 ? (
-                                    <span className="text-xs font-bold text-red-600 flex items-center gap-1">
-                                      <AlertTriangle size={12} /> {worker.critical} High Risk
-                                    </span>
-                                  ) : (
-                                    <span className="text-xs font-semibold text-emerald-600 flex items-center gap-1">
-                                      <CheckCircle2 size={12} /> No critical cases
-                                    </span>
-                                  )}
-                                </div>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span> Offline
+                                  </span>
+                                )}
                               </td>
 
-                              {/* Actions Column */}
+                              {/* Patients — animated */}
+                              <td className="px-6 py-4">
+                                <AnimatedStat label="patients" value={worker.cases} color="text-blue-600" />
+                              </td>
+
+                              {/* Tasks — animated */}
+                              <td className="px-6 py-4">
+                                <AnimatedStat label="tasks" value={worker.tasks || 8} color="text-amber-600" />
+                              </td>
+
+                              {/* Critical */}
+                              <td className="px-6 py-4">
+                                {worker.critical > 0 ? (
+                                  <span className="inline-flex items-center gap-1 text-xs font-bold text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full">
+                                    <AlertTriangle size={11} /> {worker.critical}
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                                    <CheckCircle2 size={11} /> 0
+                                  </span>
+                                )}
+                              </td>
+
+                              {/* Remove */}
                               <td className="px-6 py-4 text-right">
-                                <button className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-                                  <MoreVertical size={20} />
+                                <button
+                                  onClick={() => {
+                                    setRemovingId(worker.id);
+                                    setTimeout(() => {
+                                      setFieldWorkers(prev => prev.filter(w => w.id !== worker.id));
+                                      setRemovingId(null);
+                                    }, 380);
+                                  }}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-red-500 border border-red-200 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+                                >
+                                  <Trash2 size={13} /> Remove
                                 </button>
                               </td>
                             </tr>
@@ -680,6 +950,28 @@ export default function AdminDashboard() {
           </main>
         </div>
       </div>
+
+      {/* ── Aadhaar Modal ───────────────────────────────────────────── */}
+      {showAadhaar && (
+        <AadhaarModal
+          onClose={() => setShowAadhaar(false)}
+          onConfirm={(data) => {
+            const newWorker = {
+              id: `AW-${Date.now()}`,
+              name: data.name,
+              phone: data.phone,
+              ward: data.region,
+              status: 'online',
+              lastSync: 'Just now',
+              cases: 47,
+              tasks: 12,
+              critical: 3,
+            };
+            setFieldWorkers(prev => [newWorker, ...prev]);
+            setShowAadhaar(false);
+          }}
+        />
+      )}
     </>
   );
 }
