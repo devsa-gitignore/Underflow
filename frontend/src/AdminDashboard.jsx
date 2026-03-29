@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import IndiaHeatmap from './components/IndiaHeatmap';
 import { getStoredToken } from './auth-utils';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 // ── Animated counter hook ──────────────────────────────────────────────────
 function useCountUp(target, duration = 1200, startOnMount = true) {
@@ -61,7 +61,7 @@ function AadhaarModal({ onClose, onConfirm }) {
 
   const handleScan = () => {
     setStep('scanning');
-    setTimeout(() => setStep('preview'), 2200);
+    setTimeout(() => setStep('preview'), 4200);
   };
 
   const handleFileChange = (e) => {
@@ -73,9 +73,9 @@ function AadhaarModal({ onClose, onConfirm }) {
   const handleConfirm = () => {
     setStep('assigning');
     setTimeout(() => {
-      setAssignedStats({ patients: 47, tasks: 12, alerts: 3 });
+      setAssignedStats({ patients: 2, tasks: 12, alerts: 3 });
       setStep('done');
-    }, 1800);
+    }, 3200);
   };
 
   return (
@@ -118,12 +118,12 @@ function AadhaarModal({ onClose, onConfirm }) {
               />
 
               <div className="flex flex-col gap-3">
-                <button
+                {/* <button
                   onClick={handleScan}
                   className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-sm shadow-blue-200 flex items-center justify-center gap-2"
                 >
                   <Scan size={16} /> Scan Aadhaar Now
-                </button>
+                </button> */}
                 
                 <button
                   onClick={() => fileInputRef.current.click()}
@@ -149,7 +149,7 @@ function AadhaarModal({ onClose, onConfirm }) {
               <p className="font-bold text-slate-900 text-base mb-1">Reading Aadhaar…</p>
               <p className="text-sm text-slate-400 font-medium">Connecting to UIDAI Verification Portal</p>
               <div className="mt-5 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                <div className="h-full bg-blue-500 rounded-full animate-[scan_2.2s_ease-in-out_forwards]" style={{width: '100%', animation: 'none', background: 'linear-gradient(90deg,#3b82f6,#6366f1)', maskImage: 'linear-gradient(90deg,#000 var(--p,0%),transparent var(--p,0%))'}} />
+                <div className="h-full bg-blue-500 rounded-full animate-[scan_4.2s_ease-in-out_forwards]" style={{width: '100%', animation: 'none', background: 'linear-gradient(90deg,#3b82f6,#6366f1)', maskImage: 'linear-gradient(90deg,#000 var(--p,0%),transparent var(--p,0%))'}} />
               </div>
             </div>
           )}
@@ -302,6 +302,7 @@ function MagicBento({ children, className = "", glowColor = "16, 185, 129" }) {
 
 export default function AdminDashboard() {
   // Navigation State
+  const navigate = useNavigate();
   const [activeView, setActiveView] = useState('commandCenter');
 
   const [fieldWorkers, setFieldWorkers] = useState([]);
@@ -353,9 +354,9 @@ export default function AdminDashboard() {
                 phone: w.phone || '—',
                 status: Math.random() > 0.3 ? 'online' : 'offline',
                 lastSync: Math.random() > 0.3 ? 'Just now' : '2 hrs ago',
-                cases: Math.floor(Math.random() * 200) + 50,
-                tasks: Math.floor(Math.random() * 20) + 5,
-                critical: Math.floor(Math.random() * 10)
+                cases: Math.floor(Math.random() * 4) + 2,
+                tasks: Math.floor(Math.random() * 6) + 3,
+                critical: Math.floor(Math.random() * 3)
              }));
              setFieldWorkers(mapped);
           }
@@ -365,6 +366,8 @@ export default function AdminDashboard() {
       }
     };
     fetchAdminData();
+    const interval = setInterval(fetchAdminData, 10000); // Poll Stats every 10s
+    return () => clearInterval(interval);
   }, []);
 
   const runEpidemicAlert = async () => {
@@ -424,6 +427,12 @@ export default function AdminDashboard() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('swasthya_token');
+    localStorage.removeItem('swasthya_user');
+    navigate('/login');
   };
 
   // --- Chart Math helpers for 7 Day Trend ---
@@ -505,7 +514,11 @@ export default function AdminDashboard() {
           </nav>
 
           <div className="p-4 border-t border-slate-800">
-            <div className="flex items-center gap-3 p-2 hover:bg-slate-800/50 rounded-lg cursor-pointer transition-colors">
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center gap-3 p-2 hover:bg-slate-800/50 rounded-lg cursor-pointer transition-colors text-left"
+              title="Exit Admin"
+            >
               <div className="w-10 h-10 bg-slate-800 border border-slate-700 rounded-md flex items-center justify-center text-white font-bold">
                 DR
               </div>
@@ -514,7 +527,7 @@ export default function AdminDashboard() {
                 <p className="text-xs text-slate-500 truncate">Chief Medical Officer</p>
               </div>
               <LogOut size={16} className="text-slate-500" />
-            </div>
+            </button>
           </div>
         </aside>
 
@@ -959,7 +972,6 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               )}
-
             </div>
           </main>
         </div>
@@ -977,9 +989,9 @@ export default function AdminDashboard() {
               ward: data.region,
               status: 'online',
               lastSync: 'Just now',
-              cases: 47,
-              tasks: 12,
-              critical: 3,
+              cases: 12,
+              tasks: 8,
+              critical: 1,
             };
             setFieldWorkers(prev => [newWorker, ...prev]);
             setShowAadhaar(false);

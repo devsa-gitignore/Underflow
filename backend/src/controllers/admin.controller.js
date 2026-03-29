@@ -1,6 +1,7 @@
 import Patient from '../models/Patient.js';
 import Alert from '../models/Alert.js';
 import User from '../models/User.js';
+import SyncLog from '../models/SyncLog.js';
 import { STATUS, RISK_LEVELS } from '../config/constants.js';
 
 export const getDashboardStats = async (req, res, next) => {
@@ -13,6 +14,10 @@ export const getDashboardStats = async (req, res, next) => {
     
     // Count workers
     const activeWorkers = await User.countDocuments({ role: 'asha' });
+
+    // Count real sync logs in last 24h
+    const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const syncedLast24h = await SyncLog.countDocuments({ createdAt: { $gte: dayAgo } });
     
     return res.status(200).json({
       success: true,
@@ -21,7 +26,7 @@ export const getDashboardStats = async (req, res, next) => {
         maternalCount,
         activeAlerts,
         activeWorkers,
-        syncedLast24h: activeWorkers // mocking sync count for now until we track sync logs
+        syncedLast24h
       }
     });
   } catch (error) {
@@ -107,6 +112,20 @@ export const getTrendStats = async (req, res, next) => {
     return res.status(200).json({
       success: true,
       data: last7Days
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+export const getSyncLogs = async (req, res, next) => {
+  try {
+    const logs = await SyncLog.find()
+      .sort({ createdAt: -1 })
+      .limit(50);
+
+    return res.status(200).json({
+      success: true,
+      data: logs
     });
   } catch (error) {
     next(error);

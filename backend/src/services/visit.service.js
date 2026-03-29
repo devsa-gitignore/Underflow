@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Visit from '../models/Visit.js';
 import Patient from '../models/Patient.js';
 import Alert from '../models/Alert.js';
@@ -5,10 +6,24 @@ import { SEVERITY } from '../config/constants.js';
 import { buildVisitSuggestion, inferRiskFromVisit, normalizeRiskLevel } from '../utils/risk.js';
 
 export const createVisit = async (patientId, ashaId, visitData) => {
-  const patient = await Patient.findById(patientId);
+  let patient = null;
+  // Gracefully handle mock or temp IDs during offline-first sync
+  if (mongoose.Types.ObjectId.isValid(patientId)) {
+    patient = await Patient.findById(patientId);
+  } else {
+    console.warn(`[Sync Warning] createVisit received non-standard patientId: ${patientId}. Bypassing strict Patient bind.`);
+  }
+
   const normalizedRisk = normalizeRiskLevel(
     visitData.riskLevel || inferRiskFromVisit({ ...visitData, isPregnant: patient?.isPregnant })
   );
+
+  // If patientId isn't a valid ObjectId, we skip actual Visit creation to avoid DB CastErrors 
+  // since the Visit schema strictly requires an ObjectId for patientId.
+  if (!patient) {
+     console.warn(`[Sync Skips] Visit for phantom patient ${patientId} skipped.`);
+     return { simulated: true, status: 'skipped', tempId: patientId };
+  }
 
   const visit = await Visit.create({
     patientId,
@@ -17,8 +32,6 @@ export const createVisit = async (patientId, ashaId, visitData) => {
     riskLevel: normalizedRisk,
     aiSuggestion: visitData.aiSuggestion || buildVisitSuggestion(patient?.name || 'the patient', normalizedRisk),
   });
-
-  if (!patient) return visit;
 
   patient.currentRiskLevel = normalizedRisk;
   patient.pendingTask = 'Completed Today';

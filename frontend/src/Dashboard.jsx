@@ -106,12 +106,19 @@ function mapPatients(data) {
   });
 }
 
+function getAssignedAshaId(patient) {
+  if (!patient?.ashaId) return null;
+  if (typeof patient.ashaId === 'string') return patient.ashaId;
+  return patient.ashaId._id || null;
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const [isScanning, setIsScanning] = useState(false);
   const [patients, setPatients] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [alerts, setAlerts] = useState([]);
+  const [showAllFollowups, setShowAllFollowups] = useState(false);
   const [hiddenCards, setHiddenCards] = useState(() => {
     return JSON.parse(sessionStorage.getItem('hiddenCards') || '[]');
   });
@@ -125,14 +132,19 @@ export default function Dashboard() {
         const headers = { Authorization: `Bearer ${token}` };
 
         const [patientsRes, tasksRes, alertsRes] = await Promise.all([
-          fetch('http://localhost:5000/patients/search', { headers }).catch(() => ({ ok: false })),
+          fetch('http://localhost:5000/patients/search?assigned=true', { headers }).catch(() => ({ ok: false })),
           fetch('http://localhost:5000/asha/me/tasks', { headers }).catch(() => ({ ok: false })),
           fetch('http://localhost:5000/alerts', { headers }).catch(() => ({ ok: false }))
         ]);
 
         if (patientsRes.ok) {
           const data = await patientsRes.json();
-          setPatients(mapPatients(data));
+          const storedUser = JSON.parse(localStorage.getItem('swasthya_user') || 'null');
+          const currentUserId = storedUser?._id || null;
+          const assignedPatients = currentUserId
+            ? data.filter((patient) => String(getAssignedAshaId(patient)) === String(currentUserId))
+            : data;
+          setPatients(mapPatients(assignedPatients));
         } else {
           // Fallback mock data for hackathon demo
           setPatients([
@@ -343,29 +355,65 @@ export default function Dashboard() {
           </Link>
         </div>
 
-        {alerts.filter(a => a.status === 'ACTIVE' && a.type === 'MISSED_FOLLOWUP' && !hiddenCards.includes(a._id)).map(alert => (
-          <div key={alert._id} className="bg-red-50 border-l-4 border-l-red-600 rounded-xl p-4 flex items-start sm:items-center justify-between gap-4 shadow-[0_4px_24px_rgba(239,68,68,0.15)] mb-4">
-            <div className="flex items-start gap-3">
-              <AlertCircle size={20} className="text-red-600 mt-0.5 shrink-0 animate-pulse" />
-              <div>
-                <h3 className="font-bold text-red-800 text-sm flex items-center gap-2">
-                  Missed Follow-up (HIGH PRIORITY)
-                </h3>
-                <p className="text-red-700/90 text-sm mt-1 max-w-2xl font-medium">
-                  {alert.message} - {alert.patientId?.name || "Patient"} missed their scheduled appointment.
-                </p>
-              </div>
+        {(() => {
+          const missedFollowups = alerts.filter(a => a.status === 'ACTIVE' && a.type === 'MISSED_FOLLOWUP' && !hiddenCards.includes(a._id));
+          if (missedFollowups.length === 0) return null;
+          
+          const displayed = showAllFollowups ? missedFollowups : missedFollowups.slice(0, 1);
+          const hiddenCount = missedFollowups.length - 1;
+
+          return (
+            <div className="space-y-4 mb-4">
+              {displayed.map((alert, idx) => (
+                <div key={alert._id} className="relative bg-red-50 border-l-4 border-l-red-600 rounded-xl p-4 flex items-start sm:items-center justify-between gap-4 shadow-[0_4px_24px_rgba(239,68,68,0.15)] transition-all">
+                  {/* The +N Pill on the first item if not expanded */}
+                  {!showAllFollowups && idx === 0 && hiddenCount > 0 && (
+                    <button 
+                      onClick={() => setShowAllFollowups(true)}
+                      className="absolute -top-3 -right-2 bg-red-600 border-2 border-white text-white font-black text-xs px-2.5 py-0.5 rounded-full shadow-lg hover:bg-red-700 hover:scale-110 transition-all z-10 flex items-center justify-center cursor-pointer"
+                      title={`View ${hiddenCount} more missed follow-ups`}
+                    >
+                      +{hiddenCount} More
+                    </button>
+                  )}
+
+                  <div className="flex items-start gap-3 w-full">
+                    <AlertCircle size={20} className="text-red-600 mt-0.5 shrink-0 animate-pulse" />
+                    <div className="flex-1 pr-6 sm:pr-0">
+                      <h3 className="font-bold text-red-800 text-sm flex items-center gap-2">
+                        Missed Follow-up (HIGH PRIORITY)
+                      </h3>
+                      <p className="text-red-700/90 text-sm mt-1 max-w-2xl font-medium">
+                        {alert.message} - {alert.patientId?.name || "Patient"} missed their scheduled appointment.
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 shrink-0">
+                    {alert.patientId && (
+                      <button
+                        onClick={() => handleCardClick(alert._id, `/patient/${alert.patientId._id || alert.patientId}`)}
+                        className="hidden sm:block px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700 transition-colors shadow-sm whitespace-nowrap"
+                      >
+                        View Patient
+                      </button>
+                    )}
+                    
+                    {/* Collapse Button if expanded and on the last item */}
+                    {showAllFollowups && idx === displayed.length - 1 && (
+                      <button 
+                        onClick={() => setShowAllFollowups(false)} 
+                        className="px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-100 rounded-lg transition-colors whitespace-nowrap"
+                      >
+                        Collapse
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
-            {alert.patientId && (
-              <button
-                onClick={() => handleCardClick(alert._id, `/patient/${alert.patientId._id || alert.patientId}`)}
-                className="hidden sm:block px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700 transition-colors shadow-sm"
-              >
-                View Patient
-              </button>
-            )}
-          </div>
-        ))}
+          );
+        })()}
 
         {featuredPatient && featuredPatient.risk === 'red' && (
           <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start sm:items-center justify-between gap-4">
@@ -480,15 +528,15 @@ export default function Dashboard() {
             </div>
 
             <div className="flex flex-col gap-3">
-              {priorityPatients.filter(p => !hiddenCards.includes(p.id)).length === 0 ? (
+              {priorityPatients.length === 0 ? (
                 <div className="bg-white border border-slate-200 rounded-xl p-6 text-sm text-slate-500">
                   {text.noPatients}
                 </div>
               ) : (
-                priorityPatients.filter(p => !hiddenCards.includes(p.id)).map((patient) => (
+                priorityPatients.map((patient) => (
                   <div
                     key={patient.id}
-                    onClick={() => handleCardClick(patient.id, `/patient/${patient.id}`)}
+                    onClick={() => navigate(`/patient/${patient.id}`)}
                     className={`p-3 rounded-xl transition-all cursor-pointer relative group ${getCardStyles(patient.risk)}`}
                   >
                     {patient.risk === 'red' && (

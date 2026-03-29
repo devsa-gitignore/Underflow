@@ -1,6 +1,7 @@
 import Patient from '../models/Patient.js';
 import Alert from '../models/Alert.js';
 import FollowUp from '../models/FollowUp.js';
+import SyncLog from '../models/SyncLog.js';
 import { createPatient } from './patient.service.js';
 import { createVisit } from './visit.service.js';
 
@@ -20,11 +21,11 @@ export const processSyncUpload = async (ashaId, actions) => {
   console.log(`[Sync] Starting batch upload for ASHA: ${ashaId} with ${actions.length} actions`);
 
   for (const action of actions) {
+    const tempId = action.id;
     try {
       const { type, data } = action;
       
       if (type === 'CREATE_PATIENT') {
-        const tempId = data.id || data.tempId;
         const patientData = { ...data };
         delete patientData.id;
         delete patientData.tempId;
@@ -56,20 +57,39 @@ export const processSyncUpload = async (ashaId, actions) => {
       } 
       else {
         console.warn(`[Sync] Unknown action type: ${type}`);
-        errorDetails.push({ action, error: `Unknown action type: ${type}` });
+        errorDetails.push({ action: type, tempId, error: `Unknown action type: ${type}` });
       }
     } catch (error) {
       console.error(`[Sync] Error processing action:`, error.message);
       errorDetails.push({ 
         action: action.type, 
-        tempId: action.data.id || action.data.tempId,
+        tempId,
         error: error.message 
       });
     }
   }
 
   console.log(`[Sync] Batch upload complete. Processed: ${processedCount}, Failed: ${errorDetails.length}`);
-  return { processedCount, failedCount: errorDetails.length, errorDetails, processedActionIds };
+
+  // PERSIST SYNC LOG
+  try {
+    await SyncLog.create({
+      ashaId,
+      actionsProcessed: processedCount,
+      status: errorDetails.length === 0 ? 'SUCCESS' : processedCount > 0 ? 'PARTIAL' : 'FAILED',
+      actionTypes: [...new Set(actions.map(a => a.type))],
+      details: actions.map(a => ({
+        actionType: a.type,
+        data: a.data,
+        success: !errorDetails.some(e => e.tempId === a.id),
+        error: errorDetails.find(e => e.tempId === a.id)?.error
+      }))
+    });
+  } catch (logError) {
+    console.error('[Sync] Failed to save sync log:', logError.message);
+  }
+
+  return { processedCount, failedCount: errorDetails.length, errorDetails };
 };
 
 /**

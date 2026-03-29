@@ -145,25 +145,33 @@ export default function AddPatient() {
   const generateQR = async () => {
     setIsGeneratingQR(true);
     
+    // Map frontend gender 'F'/'M' to backend 'Female'/'Male'
+    const genderMap = { 'F': 'Female', 'M': 'Male', 'O': 'Other' };
+    
+    const patientPayload = {
+      name: `${formData.firstName} ${formData.lastName}`,
+      age: parseInt(formData.age),
+      gender: genderMap[formData.gender] || 'Female',
+      phone: formData.phone,
+      village: formData.ward,
+      region: 'Palghar', // Default region
+      isPregnant: formData.category === 'maternal',
+      pregnancyStartDate: formData.category === 'maternal' ? formData.lmp : null,
+      pendingTask: formData.pendingTask || 'Routine Checkup',
+    };
+
+    if (!navigator.onLine) {
+      console.warn("🌐 Offline detected. Instantly queueing for sync.");
+      const localId = enqueueAction('CREATE_PATIENT', patientPayload);
+      // Fallback QR code when offline
+      setQrCodeUrl(`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${localId}`);
+      setIsGeneratingQR(false);
+      return;
+    }
+
     try {
       const token = localStorage.getItem('swasthya_token');
       if (!token) throw new Error("Authentication token missing. Please log in again.");
-
-      // Map frontend gender 'F'/'M' to backend 'Female'/'Male'
-      const genderMap = { 'F': 'Female', 'M': 'Male', 'O': 'Other' };
-      
-      const patientPayload = {
-        name: `${formData.firstName} ${formData.lastName}`,
-        age: parseInt(formData.age),
-        gender: genderMap[formData.gender] || 'Female',
-        phone: formData.phone,
-        village: formData.ward,
-        region: 'Palghar', // Default region
-        isPregnant: formData.category === 'maternal',
-        pregnancyStartDate: formData.category === 'maternal' ? formData.lmp : null,
-        pendingTask: formData.pendingTask || 'Routine Checkup',
-      };
-
       console.log("🚀 Creating patient with payload:", patientPayload);
 
       // 1. Create Patient Record in DB
@@ -206,8 +214,8 @@ export default function AddPatient() {
     } catch (error) {
       console.error("🛑 Registration Workflow Error:", error);
       
-      if (isOfflineError(error)) {
-        console.warn("🌐 Offline detected. Action queued for sync.");
+      if (isOfflineError(error) || !navigator.onLine) {
+        console.warn("🌐 Network error detected. Action queued for sync.");
         const localId = enqueueAction('CREATE_PATIENT', patientPayload);
         setQrCodeUrl(`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${localId}`);
       } else {

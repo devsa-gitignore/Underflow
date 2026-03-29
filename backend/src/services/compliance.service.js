@@ -28,23 +28,21 @@ export const logCompliance = async (data, userRole = 'ASHA') => {
 };
 
 /**
- * Fetch a patient's entire compliance history
+ * Get all COMPLETED compliance history for a specific patient
  */
 export const getPatientComplianceHistory = async (patientId) => {
-  const patient = await Patient.findById(patientId);
-  if (!patient) throw new Error('Patient not found');
-
-  const history = await Compliance.find({ patientId })
+  const history = await Compliance.find({ patientId, status: 'COMPLETED' })
     .populate('patientId', 'name phone age village region')
     .sort({ date: -1 });
   return history;
 };
 
 /**
- * Detect globally missed actions, optionally filtered by an ASHA worker ID
+ * Detect globally missed or pending actions, optionally filtered by an ASHA worker ID
  */
 export const detectMissedActions = async (ashaId = null) => {
-  const query = { status: 'MISSED' };
+  // Fetch both MISSED and Scheduled (PENDING) tasks so the worker can action them
+  const query = { status: { $in: ['MISSED', 'PENDING'] } };
   
   if (ashaId) {
     query.ashaId = ashaId; // If filtering by the requesting ASHA worker
@@ -59,4 +57,42 @@ export const detectMissedActions = async (ashaId = null) => {
     .sort({ date: -1 });
 
   return missedActions;
+};
+
+/**
+ * Specifically resolve an existing MISSED or PENDING action by changing its status to COMPLETED
+ */
+export const resolveMissedTask = async (taskId) => {
+  const compliance = await Compliance.findById(taskId);
+  if (!compliance) throw new Error('Compliance record not found');
+
+  if (compliance.status !== 'MISSED' && compliance.status !== 'PENDING') {
+    throw new Error('Can only resolve MISSED or PENDING actions');
+  }
+
+  compliance.status = 'COMPLETED';
+  
+  await compliance.save();
+  return compliance;
+};
+
+/**
+ * Delete a specific compliance record permanently from the database
+ */
+export const deleteComplianceRecord = async (taskId) => {
+  const compliance = await Compliance.findByIdAndDelete(taskId);
+  if (!compliance) throw new Error('Compliance record not found');
+  return compliance;
+};
+
+/**
+ * Update the optional notes attached to a compliance action
+ */
+export const updateComplianceNote = async (taskId, newNotes) => {
+  const compliance = await Compliance.findById(taskId);
+  if (!compliance) throw new Error('Compliance record not found');
+  
+  compliance.notes = newNotes;
+  await compliance.save();
+  return compliance;
 };
