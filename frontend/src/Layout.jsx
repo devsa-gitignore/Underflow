@@ -217,14 +217,14 @@ export default function Layout() {
             <Menu size={20} />
           </button>
 
-          <div className="flex-1 max-w-md flex items-center relative hidden sm:flex">
+          {/* <div className="flex-1 max-w-md flex items-center relative hidden sm:flex">
             <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
             <input 
               type="text" 
               placeholder={text.search}
               className="w-full bg-slate-50 focus:bg-white border border-transparent focus:border-slate-300 pl-9 pr-4 py-2 rounded-lg text-sm transition-all outline-none"
             />
-          </div>
+          </div> */}
 
           <div className="flex items-center gap-4 ml-auto">
             <button

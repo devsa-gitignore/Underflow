@@ -11,23 +11,6 @@ const typeIcons = {
   MEDICATION: Activity
 };
 
-const mockTasks = [
-  {
-    _id: `m-1`,
-    patientId: { _id: 'mock-1', name: 'Aarti Sharma' },
-    type: 'VACCINATION',
-    date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-    notes: 'Missed Tetanus Toxoid Booster dose scheduled on Monday.'
-  },
-  {
-    _id: `m-2`,
-    patientId: { _id: 'mock-2', name: 'Rahul Kumar' },
-    type: 'CHECKUP',
-    date: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-    notes: 'Did not arrive for scheduled routine pediatric assessment.'
-  }
-];
-
 export default function TasksPage() {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -55,14 +38,13 @@ export default function TasksPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        // Uses missedActions as returned by controller
-        setTasks((data.missedActions && data.missedActions.length > 0) ? data.missedActions : mockTasks);
+        setTasks(data.missedActions || []);
       } else {
-        setTasks(mockTasks);
+        setTasks([]);
       }
     } catch (err) {
-      console.error("Failed to fetch missed tasks, rendering mock demo data:", err);
-      setTasks(mockTasks);
+      console.error("Failed to fetch missed tasks:", err);
+      setTasks([]);
     } finally {
       setLoading(false);
     }
@@ -95,12 +77,7 @@ export default function TasksPage() {
         alert("Failed to update status.");
       }
     } catch (err) {
-      // In demo mode for mock data, just visually remove it
-      if (task._id.startsWith('m-')) {
-        setTasks(prev => prev.filter(t => t._id !== task._id));
-      } else {
-        alert("Error saving compliance action.");
-      }
+      alert("Error saving compliance action.");
     } finally {
       setUpdatingId(null);
     }
