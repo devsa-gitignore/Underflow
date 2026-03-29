@@ -53,6 +53,22 @@ export const clearQueue = () => {
 };
 
 /**
+ * Removes only specific actions from queue by action IDs
+ */
+export const removeQueueActionsByIds = (actionIds = []) => {
+  if (!Array.isArray(actionIds) || actionIds.length === 0) return;
+  try {
+    const queue = JSON.parse(localStorage.getItem(SYNC_QUEUE_KEY) || '[]');
+    const idSet = new Set(actionIds);
+    const filtered = queue.filter((action) => !idSet.has(action.id));
+    localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(filtered));
+    window.dispatchEvent(new Event('syncUpdate'));
+  } catch (error) {
+    console.error('Failed to remove synced queue actions:', error);
+  }
+};
+
+/**
  * Checks if a fetch error is a network failure (Offline)
  */
 export const isOfflineError = (error) => {

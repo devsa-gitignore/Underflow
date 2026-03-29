@@ -26,7 +26,8 @@ export const uploadSync = async (req, res, next) => {
       success: true,
       processed: result.processedCount,
       failed: result.failedCount,
-      errors: result.errorDetails
+      errors: result.errorDetails,
+      processedActionIds: result.processedActionIds || []
     });
   } catch (error) {
     console.error('Error in uploadSync controller:', error);

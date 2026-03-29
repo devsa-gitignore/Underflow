@@ -5,6 +5,7 @@ import Login from './Login';
 import Dashboard from './Dashboard';
 import PatientDirectory from './PatientDirectory';
 import AddPatient from './AddPatient';
+import EditPatient from './EditPatient';
 import PatientProfile from './PatientProfile';
 import TimelinePage from './TimelinePage';
 import AlertsPage from './AlertsPage';
@@ -26,6 +27,7 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/directory" element={<PatientDirectory />} />
             <Route path="/add-patient" element={<AddPatient />} />
+            <Route path="/patient/:id/edit" element={<EditPatient />} />
             <Route path="/patient/:id" element={<PatientProfile />} />
             <Route path="/patient/:id/pregacare" element={<TimelinePage />} />
             <Route path="/alerts" element={<AlertsPage />} />

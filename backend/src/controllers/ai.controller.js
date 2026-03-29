@@ -5,10 +5,73 @@ import Patient from '../models/Patient.js';
 import { SEVERITY } from '../config/constants.js';
 import { normalizeRiskLevel } from '../utils/risk.js';
 
+const mapAiServiceError = (error) => {
+  const rawMessage = String(error?.message || error || 'Unknown AI service error');
+  const message = rawMessage.toLowerCase();
+
+  if (message.includes('timed out')) {
+    return {
+      status: 504,
+      message: 'AI service timed out. Please retry shortly.',
+      code: 'AI_TIMEOUT',
+      details: rawMessage,
+    };
+  }
+
+  if (message.includes('quota') || message.includes('429 too many requests') || message.includes('rate limit')) {
+    return {
+      status: 503,
+      message: 'AI provider limit reached. Please retry later.',
+      code: 'AI_RATE_LIMIT',
+      details: rawMessage,
+    };
+  }
+
+  if (
+    message.includes('failed to parse') ||
+    message.includes('missing required fields') ||
+    message.includes('must be a non-empty array')
+  ) {
+    return {
+      status: 502,
+      message: 'AI provider returned an invalid response format.',
+      code: 'AI_INVALID_RESPONSE',
+      details: rawMessage,
+    };
+  }
+
+  if (
+    message.includes('not configured in the environment variables') ||
+    message.includes('empty response')
+  ) {
+    return {
+      status: 500,
+      message: 'AI provider is not configured correctly.',
+      code: 'AI_MISCONFIGURED',
+      details: rawMessage,
+    };
+  }
+
+  return {
+    status: 502,
+    message: 'AI service request failed.',
+    code: 'AI_SERVICE_ERROR',
+    details: rawMessage,
+  };
+};
+
 export const analyzeRisk = asyncHandler(async (req, res) => {
   const { bp, weight, bloodSugar, symptoms, otherFactors, patientId } = req.body;
 
-  const aiResult = await evaluateRisk({ bp, weight, bloodSugar, symptoms, otherFactors });
+  let aiResult;
+  try {
+    aiResult = await evaluateRisk({ bp, weight, bloodSugar, symptoms, otherFactors });
+  } catch (error) {
+    const mapped = mapAiServiceError(error);
+    res.status(mapped.status);
+    throw new Error(`${mapped.message} [${mapped.code}] ${mapped.details}`);
+  }
+
   const risk = normalizeRiskLevel(aiResult.riskLevel);
   aiResult.riskLevel = risk;
 
@@ -68,7 +131,14 @@ export const getTimeline = asyncHandler(async (req, res) => {
     throw new Error('Please provide at least age and currentMonth for a timeline.');
   }
 
-  const timelineData = await generateTimeline({ age, lmp, conditions, currentMonth });
+  let timelineData;
+  try {
+    timelineData = await generateTimeline({ age, lmp, conditions, currentMonth });
+  } catch (error) {
+    const mapped = mapAiServiceError(error);
+    res.status(mapped.status);
+    throw new Error(`${mapped.message} [${mapped.code}] ${mapped.details}`);
+  }
 
   res.status(200).json({
     success: true,
@@ -84,7 +154,15 @@ export const getEpidemicAlerts = asyncHandler(async (req, res) => {
     throw new Error("Please provide 'aggregatedDataText' representing recent health checkups.");
   }
 
-  const alertResult = await detectEpidemic(aggregatedDataText);
+  let alertResult;
+  try {
+    alertResult = await detectEpidemic(aggregatedDataText);
+  } catch (error) {
+    const mapped = mapAiServiceError(error);
+    res.status(mapped.status);
+    throw new Error(`${mapped.message} [${mapped.code}] ${mapped.details}`);
+  }
+
   let dbAlertMsg = null;
   const level = String(alertResult.alertLevel || 'NORMAL').toUpperCase();
 

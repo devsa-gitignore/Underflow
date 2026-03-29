@@ -128,56 +128,66 @@ export default function PatientDirectory() {
   const [isLoading, setIsLoading] = useState(true);
   const text = language === 'hi' ? hindiText : englishText;
 
-  useEffect(() => {
-    const fetchPatients = async () => {
-      setIsLoading(true);
-      try {
-        const token = await getStoredToken();
-        const response = await fetch('http://localhost:5000/patients/search', {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+  const fetchPatients = async () => {
+    setIsLoading(true);
+    try {
+      const token = await getStoredToken();
+      const response = await fetch('http://localhost:5000/patients/search', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const mapped = data.map((p) => {
+          const riskLower = (p.currentRiskLevel || 'low').toLowerCase();
+          const riskColor = (riskLower === 'critical' || riskLower === 'high') ? 'red' : riskLower === 'medium' ? 'yellow' : 'green';
+          const tags = [];
+          if (p.isPregnant) tags.push('maternal');
+          if (riskLower === 'critical' || riskLower === 'high') tags.push('high-risk');
+          if (p.age < 15) tags.push('vaccine');
+          if (tags.length === 0) tags.push('general');
+          tags.push(riskLower);
+          return {
+            id: p._id,
+            name: p.name,
+            age: p.age,
+            ward: p.village || 'Unassigned',
+            risk: riskColor,
+            tags,
+            issue: p.pendingTask || (p.isPregnant ? 'Pregnancy Tracking' : 'Routine Checkup'),
+            lastVisit: new Date(p.updatedAt).toLocaleDateString(),
+          };
         });
-        if (response.ok) {
-          const data = await response.json();
-          const mapped = data.map((p) => {
-            const riskLower = (p.currentRiskLevel || 'low').toLowerCase();
-            const riskColor = (riskLower === 'critical' || riskLower === 'high') ? 'red' : riskLower === 'medium' ? 'yellow' : 'green';
-            const tags = [];
-            if (p.isPregnant) tags.push('maternal');
-            if (riskLower === 'critical' || riskLower === 'high') tags.push('high-risk');
-            if (p.age < 15) tags.push('vaccine');
-            if (tags.length === 0) tags.push('general');
-            tags.push(riskLower);
-            return {
-              id: p._id,
-              name: p.name,
-              age: p.age,
-              ward: p.village || 'Unassigned',
-              risk: riskColor,
-              tags,
-              issue: p.pendingTask || (p.isPregnant ? 'Pregnancy Tracking' : 'Routine Checkup'),
-              lastVisit: new Date(p.updatedAt).toLocaleDateString(),
-            };
-          });
-          setPatients(mapped);
-        }
-      } catch {
-        console.error('Backend fetch failed, using fallback mock data.');
-        setPatients([
-          { id: 'mock-1', name: 'Aarti Sharma', age: 28, ward: 'Ward 4', risk: 'red', tags: ['maternal', 'high-risk'], issue: 'Maternal Follow-up', lastVisit: new Date().toLocaleDateString() },
-          { id: 'mock-2', name: 'Pooja Patel', age: 24, ward: 'Ward 4', risk: 'yellow', tags: ['maternal', 'medium'], issue: 'Pregnancy Tracking', lastVisit: new Date().toLocaleDateString() },
-          { id: 'mock-3', name: 'Rahul Kumar', age: 3, ward: 'Ward 2', risk: 'green', tags: ['vaccine', 'low'], issue: 'Vaccination', lastVisit: new Date().toLocaleDateString() },
-          { id: 'mock-4', name: 'Sunita Devi', age: 34, ward: 'Ward 5', risk: 'green', tags: ['general', 'low'], issue: 'Routine Checkup', lastVisit: new Date().toLocaleDateString() },
-          { id: 'mock-5', name: 'Kishan Joshi', age: 22, ward: 'Ward 1', risk: 'red', tags: ['high-risk', 'critical'], issue: 'High Risk monitoring', lastVisit: new Date().toLocaleDateString() },
-          { id: 'mock-6', name: 'Anil Devi', age: 5, ward: 'Ward 1', risk: 'green', tags: ['vaccine', 'low'], issue: 'Vaccination', lastVisit: new Date().toLocaleDateString() },
-        ]);
-      } finally {
-        setIsLoading(false);
+        setPatients(mapped);
       }
+    } catch {
+      console.error('Backend fetch failed, using fallback mock data.');
+      setPatients([
+        { id: 'mock-1', name: 'Aarti Sharma', age: 28, ward: 'Ward 4', risk: 'red', tags: ['maternal', 'high-risk'], issue: 'Maternal Follow-up', lastVisit: new Date().toLocaleDateString() },
+        { id: 'mock-2', name: 'Pooja Patel', age: 24, ward: 'Ward 4', risk: 'yellow', tags: ['maternal', 'medium'], issue: 'Pregnancy Tracking', lastVisit: new Date().toLocaleDateString() },
+        { id: 'mock-3', name: 'Rahul Kumar', age: 3, ward: 'Ward 2', risk: 'green', tags: ['vaccine', 'low'], issue: 'Vaccination', lastVisit: new Date().toLocaleDateString() },
+        { id: 'mock-4', name: 'Sunita Devi', age: 34, ward: 'Ward 5', risk: 'green', tags: ['general', 'low'], issue: 'Routine Checkup', lastVisit: new Date().toLocaleDateString() },
+        { id: 'mock-5', name: 'Kishan Joshi', age: 22, ward: 'Ward 1', risk: 'red', tags: ['high-risk', 'critical'], issue: 'High Risk monitoring', lastVisit: new Date().toLocaleDateString() },
+        { id: 'mock-6', name: 'Anil Devi', age: 5, ward: 'Ward 1', risk: 'green', tags: ['vaccine', 'low'], issue: 'Vaccination', lastVisit: new Date().toLocaleDateString() },
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPatients();
+
+    const handlePatientsSynced = () => {
+      fetchPatients();
     };
 
-    fetchPatients();
+    window.addEventListener('patientsSynced', handlePatientsSynced);
+
+    return () => {
+      window.removeEventListener('patientsSynced', handlePatientsSynced);
+    };
   }, []);
 
   const filteredPatients = patients.filter((patient) => {

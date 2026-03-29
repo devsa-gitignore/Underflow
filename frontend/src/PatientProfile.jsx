@@ -493,18 +493,24 @@ export default function PatientProfile() {
 
       if (response.ok) {
         const data = await response.json();
-        setAssessmentResult(data.data);
+        const aiData = data.data;
+        // Map backend schema to local state
+        setAssessmentResult({
+          riskLevel: aiData.riskLevel || 'LOW',
+          possibleCondition: aiData.possibleCondition || 'None identified',
+          immediateActionRequired: aiData.immediateActionRequired || false,
+          adviceForAshaWorker: aiData.adviceForAshaWorker || 'Continue routine monitoring.'
+        });
       } else {
-        throw new Error('Backend failed');
+        throw new Error('Backend assessment failed');
       }
     } catch (err) {
       console.error('AI Assessment error:', err);
-      // Fallback demo mock
       setAssessmentResult({
-        riskLevel: 'MODERATE',
-        possibleCondition: 'Mild Anemia',
+        riskLevel: 'LOW',
+        possibleCondition: 'Checkup complete',
         immediateActionRequired: false,
-        adviceForAshaWorker: 'Recommend iron-rich diet and monitor vital signs over the next two weeks.'
+        adviceForAshaWorker: 'Maintain standard care protocols. AI service currently unavailable.'
       });
     } finally {
       setIsAssessing(false);
@@ -531,7 +537,10 @@ export default function PatientProfile() {
             </button>
             <h1 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-br from-slate-900 via-slate-700 to-slate-600">{text.patientRecord}</h1>
           </div>
-          <button className="bg-white/80 backdrop-blur-md text-slate-700 border border-slate-200/60 px-4 py-2 rounded-xl text-sm font-bold hover:bg-white hover:shadow-sm active:scale-[0.98] transition-all hidden sm:block">
+          <button 
+            onClick={() => navigate(`/patient/${patient.id}/edit`)}
+            className="bg-white/80 backdrop-blur-md text-slate-700 border border-slate-200/60 px-4 py-2 rounded-xl text-sm font-bold hover:bg-white hover:shadow-sm active:scale-[0.98] transition-all hidden sm:block"
+          >
             {text.editDetails}
           </button>
         </header>

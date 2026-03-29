@@ -1,139 +1,155 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import axios from 'axios';
 
-export const evaluateRisk = async ({ bp, weight, bloodSugar, symptoms, otherFactors }) => {
-    // Make sure API key is available
-    if (!process.env.GEMINI_API_KEY) {
-        throw new Error("GEMINI_API_KEY is not configured in the environment variables");
-    }
-
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    // Use 2.5 flash model for fast inference
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
-
-    const prompt = `
-You are an expert maternal healthcare AI designed to assist ASHA workers in rural areas. 
-Analyze the following pregnant patient data collected during a routine checkup:
-- Blood Pressure: ${bp || "Not provided"}
-- Weight: ${weight || "Not provided"}
-- Blood Sugar: ${bloodSugar || "Not provided"}
-- Symptoms reported: ${symptoms || "None"}
-- Other factors/notes: ${otherFactors || "None"}
-
-Determine the risk level for pregnancy complications (e.g., Preeclampsia, Gestational Diabetes, Anemia, etc.).
-Return ONLY a JSON object with this exact schema (no markdown, no backticks, just raw JSON). Do not return any other text.
-{
-  "riskLevel": "LOW" | "MODERATE" | "HIGH",
-  "possibleCondition": "String describing potential condition (or 'None identified')",
-  "immediateActionRequired": boolean,
-  "adviceForAshaWorker": "Clear, actionable advice for the healthcare worker"
-}`;
-
-    const result = await model.generateContent(prompt);
-    const responseText = result.response.text();
-    
+/**
+ * Robust JSON extraction from AI response
+ */
+const cleanAIResponse = (text) => {
     try {
-        // Strip markdown codeblocks if AI happens to add them
-        const cleanedText = responseText.replace(/```json/gi, "").replace(/```/g, "").trim();
-        return JSON.parse(cleanedText);
+        const cleaned = text.replace(/```json/gi, "").replace(/```/g, "").trim();
+        return JSON.parse(cleaned);
     } catch (e) {
-        console.error("AI Output parsing error:", responseText);
-        throw new Error("Failed to parse AI response into valid JSON");
+        console.warn("[AI] Standard JSON parse failed, attempting regex extraction...");
+        const jsonMatch = text.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+        if (jsonMatch) {
+            try {
+                return JSON.parse(jsonMatch[0]);
+            } catch (innerE) {
+                console.error("[AI] Regex extraction failed too:", text);
+                throw new Error("AI provider returned invalid JSON format.");
+            }
+        }
+        throw new Error("AI provider returned invalid JSON format.");
     }
 };
 
-export const generateTimeline = async ({ age, lmp, conditions, currentMonth }) => {
-    if (!process.env.GEMINI_API_KEY) {
-        throw new Error("GEMINI_API_KEY is not configured in the environment variables");
+/**
+ * Multi-Provider AI Caller with Triple-Tier Fallback (Now including Stepfun)
+ */
+const callAI = async (prompt, systemInstruction = "") => {
+    // 1. Try OpenRouter (Primary) - Gemma 3 4B Free
+    if (process.env.OPENROUTER_API_KEY) {
+        try {
+            console.log("[AI] Attempting OpenRouter (google/gemma-3-4b-it:free)...");
+            const response = await axios.post("https://openrouter.ai/api/v1/chat/completions", {
+                model: "google/gemma-3-4b-it:free", 
+                messages: [
+                    { role: "system", content: systemInstruction },
+                    { role: "user", content: prompt }
+                ]
+            }, {
+                headers: {
+                    "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+                    "HTTP-Referer": "http://localhost:3000",
+                    "X-Title": "Swasthya Sathi ASHA Portal"
+                },
+                timeout: 10000 
+            });
+
+            if (response.data?.choices?.[0]?.message?.content) {
+                return cleanAIResponse(response.data.choices[0].message.content);
+            }
+        } catch (error) {
+            console.error("[AI] OpenRouter (Gemma) failed, falling back to Gemini 3.1 SDK:", error.response?.data?.error?.message || error.message);
+        }
     }
 
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
+    // 2. Try Google Gemini SDK (Verified 3.1 Preview Fallback)
+    if (process.env.GEMINI_API_KEY) {
+        try {
+            console.log("[AI] Falling back to Gemini SDK (gemini-3.1-flash-lite-preview)...");
+            const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+            const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite-preview" });
+            const result = await model.generateContent(systemInstruction + "\n\n" + prompt);
+            return cleanAIResponse(result.response.text());
+        } catch (error) {
+            console.error("[AI] Gemini 3.1 Preview SDK failed, falling back to Stepfun:", error.message);
+        }
+    }
 
-    // Ensure currentMonth is an integer for logical comparisons in the prompt
+    // 3. Try Stepfun (Ultra-Resilient Fallback via OpenRouter)
+    if (process.env.OPENROUTER_API_KEY) {
+        try {
+            console.log("[AI] Falling back to Stepfun (stepfun/step-3.5-flash:free)...");
+            const response = await axios.post("https://openrouter.ai/api/v1/chat/completions", {
+                model: "stepfun/step-3.5-flash:free", 
+                messages: [{ role: "user", content: systemInstruction + "\n\n" + prompt }]
+            }, {
+                headers: {
+                    "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+                    "HTTP-Referer": "http://localhost:3000",
+                    "X-Title": "Swasthya Sathi ASHA Portal"
+                },
+                timeout: 10000 
+            });
+
+            if (response.data?.choices?.[0]?.message?.content) {
+                return cleanAIResponse(response.data.choices[0].message.content);
+            }
+        } catch (error) {
+            console.error("[AI] Stepfun Fallback failed:", error.response?.data?.error?.message || error.message);
+            throw new Error("All AI providers (OpenRouter/Gemini/Stepfun) are currently unavailable.");
+        }
+    }
+
+    throw new Error("No AI providers available on free tier.");
+};
+
+export const evaluateRisk = async ({ bp, weight, bloodSugar, symptoms, otherFactors }) => {
+    const systemInstruction = "You are an expert maternal healthcare AI. Return ONLY valid JSON.";
+    const prompt = `
+Analyze Patient Health:
+- BP: ${bp || "Not provided"}
+- Weight: ${weight || "Not provided"} kg
+- Sugar: ${bloodSugar || "Not provided"} mg/dL
+- Symptoms: ${symptoms || "None"}
+
+Risk Assess & Return ONLY JSON:
+{
+  "riskLevel": "LOW" | "MODERATE" | "HIGH",
+  "possibleCondition": "String",
+  "immediateActionRequired": boolean,
+  "adviceForAshaWorker": "Clear advice"
+}`;
+
+    return await callAI(prompt, systemInstruction);
+};
+
+export const generateTimeline = async ({ age, conditions, currentMonth }) => {
+    const systemInstruction = "You are an expert obstetrician AI. Return ONLY a JSON array of 9 months.";
     const month = parseInt(currentMonth) || 1;
 
     const prompt = `
-You are an expert obstetrician AI assisting an ASHA worker. 
-Generate a quick pregnancy timeline summary for patient:
-- Age: ${age || "Not provided"}
-- Pre-existing Conditions: ${conditions || "None"}
-- Current Pregnancy Month: ${month}
+Personalized Care Timeline (9 Months):
+Patient: Age ${age}, Conditions: ${conditions}. Current Month: ${month}.
 
-Return ONLY a JSON array with exactly 3 key milestones: {1: First trimester}, {current: Month ${month}}, {9: Third trimester delivery}.
-[
-  {
-    "monthNumber": 1,
-    "isCurrent": ${month === 1},
-    "title": "First Trimester",
-    "summary": "Brief fetal and maternal changes",
-    "symptoms": "Common symptoms to expect",
-    "dietaryAdvice": "Key nutrition tips",
-    "warnings": "Red flags requiring urgent care"
-  },
-  {
-    "monthNumber": ${month},
-    "isCurrent": true,
-    "title": "Current Month",
-    "summary": "What to expect now",
-    "symptoms": "Current stage symptoms",
-    "dietaryAdvice": "Current nutrition needs",
-    "warnings": "Current red flags"
-  },
-  {
-    "monthNumber": 9,
-    "isCurrent": false,
-    "title": "Third Trimester & Delivery",
-    "summary": "Final weeks and labor prep",
-    "symptoms": "Pre-labor symptoms",
-    "dietaryAdvice": "Pre-delivery nutrition",
-    "warnings": "Delivery complications to watch"
-  }
-]
-Return ONLY raw JSON. Do not wrap in markdown backticks.
-`;
+Return ONLY a JSON array with exactly 9 objects:
+{
+  "monthNumber": number,
+  "isCurrent": boolean,
+  "isCompleted": boolean,
+  "title": "Focus",
+  "summary": "Summary",
+  "symptoms": "Symptoms",
+  "dietaryAdvice": "Advice",
+  "warnings": "Red flags"
+}`;
 
-    const result = await model.generateContent(prompt);
-    const responseText = result.response.text();
-    
-    try {
-        const cleanedText = responseText.replace(/```json/gi, "").replace(/```/g, "").trim();
-        return JSON.parse(cleanedText);
-    } catch (e) {
-        console.error("AI Output parsing error:", responseText);
-        throw new Error("Failed to parse AI timeline response into valid JSON");
-    }
+    return await callAI(prompt, systemInstruction);
 };
 
 export const detectEpidemic = async (aggregatedDataText) => {
-    if (!process.env.GEMINI_API_KEY) {
-        throw new Error("GEMINI_API_KEY is not configured in the environment variables");
-    }
-
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
-
+    const systemInstruction = "You are a public health AI. Return ONLY valid JSON report.";
     const prompt = `
-You are a public health AI analyzing aggregated checkup data for a rural region over the last 7 days.
-Data Summary:
+Analyze regional health data:
 ${aggregatedDataText}
 
-Task: Identify any signs of localized epidemics, contagious outbreaks, or systemic malnutrition.
-Return ONLY a JSON object with this exact schema (no markdown formatting, just raw JSON):
+Identify outbreaks. Return:
 {
   "alertLevel": "NORMAL" | "WARNING" | "CRITICAL",
-  "findings": "Summary of any unusual patterns detected or 'No unusual patterns'",
-  "recommendations": "Actionable public health recommendations"
-}
-`;
+  "findings": "Summary",
+  "recommendations": "Actions"
+}`;
 
-    const result = await model.generateContent(prompt);
-    const responseText = result.response.text();
-    
-    try {
-        const cleanedText = responseText.replace(/```json/gi, "").replace(/```/g, "").trim();
-        return JSON.parse(cleanedText);
-    } catch (e) {
-        console.error("AI Output parsing error:", responseText);
-        throw new Error("Failed to parse AI epidemic response into valid JSON");
-    }
+    return await callAI(prompt, systemInstruction);
 };

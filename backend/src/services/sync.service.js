@@ -14,6 +14,7 @@ export const processSyncUpload = async (ashaId, actions) => {
   // In-memory mapping for the scope of this request
   const idMap = {};
   let processedCount = 0;
+  const processedActionIds = [];
   const errorDetails = [];
 
   console.log(`[Sync] Starting batch upload for ASHA: ${ashaId} with ${actions.length} actions`);
@@ -36,6 +37,7 @@ export const processSyncUpload = async (ashaId, actions) => {
           console.log(`[Sync] Mapped ${tempId} -> ${patient._id}`);
         }
         processedCount++;
+        if (action.id) processedActionIds.push(action.id);
       } 
       else if (type === 'ADD_VISIT') {
         let patientId = data.patientId;
@@ -50,6 +52,7 @@ export const processSyncUpload = async (ashaId, actions) => {
         console.log(`[Sync] Processing ADD_VISIT for patient: ${patientId}`);
         await createVisit(patientId, ashaId, visitData);
         processedCount++;
+        if (action.id) processedActionIds.push(action.id);
       } 
       else {
         console.warn(`[Sync] Unknown action type: ${type}`);
@@ -66,7 +69,7 @@ export const processSyncUpload = async (ashaId, actions) => {
   }
 
   console.log(`[Sync] Batch upload complete. Processed: ${processedCount}, Failed: ${errorDetails.length}`);
-  return { processedCount, failedCount: errorDetails.length, errorDetails };
+  return { processedCount, failedCount: errorDetails.length, errorDetails, processedActionIds };
 };
 
 /**

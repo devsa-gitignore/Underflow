@@ -9,47 +9,53 @@ export default function PregnancyTimeline({ patient }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    const fetchTimeline = async () => {
-      try {
-        setLoading(true);
-        const token = await getStoredToken();
-        
-        // Calculate rough current month from LMP if available, else default to 5
-        let currentMonth = 5;
-        if (patient?.lmp) {
-          const lmpDate = new Date(patient.lmp);
-          const now = new Date();
-          const diffInMonths = (now.getFullYear() - lmpDate.getFullYear()) * 12 + now.getMonth() - lmpDate.getMonth();
-          if (diffInMonths > 0 && diffInMonths <= 9) currentMonth = diffInMonths;
-        }
-
-        const response = await fetch('http://localhost:5000/ai/timeline', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token && { Authorization: `Bearer ${token}` })
-          },
-          body: JSON.stringify({
-            age: patient?.age || 25,
-            conditions: patient?.conditions || "None",
-            currentMonth: currentMonth
-          })
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to generate AI timeline');
-        }
-
-        const result = await response.json();
-        setTimelineData(result.data || []);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
+  const fetchTimeline = async (isRegenerating = false) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const token = await getStoredToken();
+      
+      let currentMonth = 1; // Default to Month 1 if no date
+      const lmpSource = patient?.pregnancyStartDate || patient?.lmp;
+      
+      if (lmpSource) {
+        const lmpDate = new Date(lmpSource);
+        const now = new Date();
+        const diffInMonths = (now.getFullYear() - lmpDate.getFullYear()) * 12 + now.getMonth() - lmpDate.getMonth();
+        // Shift by 1 since Month 1 starts from day 0
+        const calculatedMonth = diffInMonths + 1;
+        if (calculatedMonth >= 1 && calculatedMonth <= 9) currentMonth = calculatedMonth;
+        else if (calculatedMonth > 9) currentMonth = 9;
       }
-    };
 
+      const response = await fetch('http://localhost:5000/ai/timeline', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { Authorization: `Bearer ${token}` })
+        },
+        body: JSON.stringify({
+          age: patient?.age || 25,
+          conditions: patient?.conditions || "None",
+          currentMonth: currentMonth,
+          forceRefresh: isRegenerating
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate AI timeline');
+      }
+
+      const result = await response.json();
+      setTimelineData(result.data || []);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchTimeline();
   }, [patient]);
 
@@ -64,9 +70,13 @@ export default function PregnancyTimeline({ patient }) {
         <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
           <Activity size={20} className="text-emerald-500" /> AI Growth Timeline
         </h3>
-        <span className="text-sm font-semibold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
-          Smart Path Active
-        </span>
+        <button 
+          onClick={() => fetchTimeline(true)}
+          disabled={loading}
+          className="text-sm font-semibold text-emerald-600 bg-emerald-50 px-4 py-2 rounded-xl border border-emerald-200 hover:bg-emerald-100 transition-all shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {loading ? 'Analyzing...' : 'Re-generate Roadmap'}
+        </button>
       </div>
 
       <div className="bg-white/80 backdrop-blur-2xl rounded-3xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden p-6 sm:p-8 min-h-[200px] relative">
@@ -90,25 +100,24 @@ export default function PregnancyTimeline({ patient }) {
           >
             {timelineData.map((month, idx) => {
               const isExpanded = expandedMonth === month.monthNumber;
-              const isLocked = !month.isCurrent && month.monthNumber > 1 && !timelineData.find(m => m.isCurrent && m.monthNumber >= month.monthNumber); // simplified lock logic
+              const isLocked = !month.isCurrent && !month.isCompleted;
               
-              // Dynamic styling based on the state of the month
               let pulseBorder = "";
               let iconBg = "";
               let iconComponent = null;
 
               if (month.isCurrent) {
-                pulseBorder = "ring-4 ring-emerald-500/20 bg-white border-emerald-500 scale-110 shadow-lg shadow-emerald-500/10";
+                pulseBorder = "ring-4 ring-emerald-500/20 bg-white border-emerald-500 scale-105 shadow-lg shadow-emerald-500/10";
                 iconBg = "bg-emerald-500 text-white shadow-md shadow-emerald-500/20";
                 iconComponent = <Activity size={18} />;
               } else if (month.isCompleted) {
-                pulseBorder = "bg-white border-emerald-200 scale-100";
+                pulseBorder = "bg-white border-emerald-200 opacity-90";
                 iconBg = "bg-emerald-50 text-emerald-600 border border-emerald-200";
                 iconComponent = <CheckCircle size={18} />;
               } else {
-                pulseBorder = "bg-white/40 border-slate-200/60 hover:bg-white hover:border-slate-200 shadow-sm hover:shadow-md hover:scale-[1.01] active:scale-[0.99]";
-                iconBg = "bg-blue-500 text-white shadow-lg shadow-blue-500/30";
-                iconComponent = <CheckCircle size={16} />;
+                pulseBorder = "bg-slate-50/50 border-slate-200/60 grayscale-[0.8]";
+                iconBg = "bg-slate-200 text-slate-400";
+                iconComponent = <Lock size={16} />;
               }
 
               return (
