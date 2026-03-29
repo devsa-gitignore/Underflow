@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ClipboardList, CalendarX2, CheckCircle2, RotateCw, Activity, Syringe, Stethoscope, AlertTriangle, History, X, Plus, ChevronDown } from 'lucide-react';
+import { ClipboardList, CalendarX2, CheckCircle2, RotateCw, Activity, Syringe, Stethoscope, AlertTriangle, History, X, Plus, ChevronDown, Trash2 } from 'lucide-react';
 import { getStoredToken } from './auth-utils';
 import { useLanguage } from './language-context';
 
@@ -37,8 +37,9 @@ export default function TasksPage() {
   const [historyPatient, setHistoryPatient] = useState(null);
   const [historyData, setHistoryData] = useState([]);
   
-  // New Log Modal
+  // New Log & Globals Modal
   const [showLogModal, setShowLogModal] = useState(false);
+  const [showPatientListModal, setShowPatientListModal] = useState(false);
   const [allPatients, setAllPatients] = useState([]);
   const [logForm, setLogForm] = useState({ patientId: '', type: 'VACCINATION', status: 'PENDING' });
 
@@ -124,12 +125,23 @@ export default function TasksPage() {
     }
   };
 
+  const handleOpenPatientListModal = async () => {
+    setShowPatientListModal(true);
+    try {
+      const token = await getStoredToken();
+      const res = await fetch('http://localhost:5000/patients/search?assigned=true', { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) {
+        setAllPatients(await res.json());
+      }
+    } catch {}
+  };
+
   const handleOpenLogModal = async () => {
     setShowLogModal(true);
     try {
       const token = await getStoredToken();
-      // Using the correct backend route to fetch patients
-      const res = await fetch('http://localhost:5000/patients/search', { headers: { Authorization: `Bearer ${token}` } });
+      // Using the correct backend route to fetch patients explicitly locked to this user
+      const res = await fetch('http://localhost:5000/patients/search?assigned=true', { headers: { Authorization: `Bearer ${token}` } });
       if (res.ok) {
         const pData = await res.json();
         setAllPatients(pData);
@@ -163,6 +175,31 @@ export default function TasksPage() {
     }
   };
 
+  const handleDeleteTask = async (taskId, isHistory = false) => {
+    if (!window.confirm("Are you sure you want to permanently delete this task?")) return;
+    setUpdatingId(taskId);
+    try {
+      const token = await getStoredToken();
+      const res = await fetch(`http://localhost:5000/compliance/${taskId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        if (isHistory) {
+          setHistoryData(prev => prev.filter(t => t._id !== taskId));
+        } else {
+          setTasks(prev => prev.filter(t => t._id !== taskId));
+        }
+      } else {
+        alert("Failed to delete record.");
+      }
+    } catch {
+      alert("Error deleting record.");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
   const validTasks = tasks.filter(t => t && t.patientId);
 
   return (
@@ -178,6 +215,12 @@ export default function TasksPage() {
             <p className="text-sm text-slate-500 font-medium tracking-tight mt-1">Review and log pending compliance actions for your assigned patients.</p>
           </div>
           <div className="flex gap-2">
+            <button 
+              onClick={handleOpenPatientListModal}
+              className="px-4 py-2 bg-slate-800 text-white font-bold rounded-xl hover:bg-slate-700 transition shadow-sm text-sm flex items-center gap-2"
+            >
+              <History size={16} /> View History
+            </button>
             <button 
               onClick={handleOpenLogModal}
               className="px-4 py-2 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-500 transition shadow-sm text-sm flex items-center gap-2"
@@ -235,13 +278,21 @@ export default function TasksPage() {
                           </span>
                         </div>
                         <p className="text-sm font-medium text-slate-600 flex items-center gap-1.5">
-                          <CalendarX2 size={16} className="text-slate-400" />
-                          Missed since: <span className="font-semibold text-slate-700">{new Date(task.date).toLocaleDateString()}</span>
+                          <CalendarX2 size={16} className={task.status === 'PENDING' ? 'text-blue-400' : 'text-slate-400'} />
+                          {task.status === 'PENDING' ? 'Scheduled for:' : 'Missed since:'} <span className="font-semibold text-slate-700">{new Date(task.date).toLocaleDateString()}</span>
                         </p>
                       </div>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto mt-4 md:mt-0">
+                    <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto mt-4 md:mt-0 items-center">
+                      <button 
+                        onClick={() => handleDeleteTask(task._id)}
+                        disabled={updatingId === task._id}
+                        className="p-2.5 text-red-500 hover:bg-red-50 border border-transparent hover:border-red-100 rounded-xl transition-all disabled:opacity-50"
+                        title="Delete Task"
+                      >
+                        <Trash2 size={18} />
+                      </button>
                       <button 
                         onClick={() => handleLogCompliance(task, 'COMPLETED')}
                         disabled={updatingId === task._id}
@@ -309,6 +360,13 @@ export default function TasksPage() {
                             </div>
                             <p className="text-xs font-semibold text-slate-500 mb-1">{new Date(log.date).toLocaleString()}</p>
                           </div>
+                          <button 
+                            onClick={() => handleDeleteTask(log._id, true)}
+                            disabled={updatingId === log._id}
+                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all ml-auto disabled:opacity-50"
+                          >
+                            <Trash2 size={16} />
+                          </button>
                         </div>
                       )
                     })}
@@ -393,6 +451,48 @@ export default function TasksPage() {
                   {updatingId === 'new' ? <RotateCw size={18} className="animate-spin" /> : <Plus size={18} />} Save Record
                 </button>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Select Patient for History Modal */}
+      <AnimatePresence>
+        {showPatientListModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setShowPatientListModal(false)}>
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 flex flex-col max-h-[70vh]"
+            >
+              <div className="bg-slate-900 px-6 py-5 text-white flex items-center justify-between shrink-0">
+                <h3 className="font-bold text-lg flex items-center gap-2"><History size={20} className="text-blue-400"/> Patient Directory</h3>
+                <button onClick={() => setShowPatientListModal(false)} className="p-2 rounded-xl hover:bg-slate-800 transition-colors"><X size={20} /></button>
+              </div>
+              <div className="p-4 overflow-y-auto space-y-2 bg-slate-50/50 flex-1">
+                {allPatients.length === 0 ? (
+                  <p className="text-center text-sm text-slate-500 font-medium py-10">Searching for assigned patients...</p>
+                ) : (
+                  allPatients.map(p => (
+                    <button 
+                      key={p._id}
+                      onClick={() => {
+                        setShowPatientListModal(false);
+                        fetchHistory(p._id, p.name);
+                      }}
+                      className="w-full text-left bg-white p-4 rounded-xl border border-slate-200 hover:border-blue-400 hover:shadow-md transition-all flex justify-between items-center group"
+                    >
+                      <div>
+                        <h4 className="font-bold text-slate-800 text-sm">{p.name}</h4>
+                        <p className="text-xs font-semibold text-slate-500 mt-0.5">{p.village}</p>
+                      </div>
+                      <History size={16} className="text-slate-300 group-hover:text-blue-500 transition-colors" />
+                    </button>
+                  ))
+                )}
+              </div>
             </motion.div>
           </div>
         )}

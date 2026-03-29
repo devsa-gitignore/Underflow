@@ -42,13 +42,10 @@ export const getPatientComplianceHistory = asyncHandler(async (req, res) => {
 // @route   GET /compliance/missed
 // @access  Private
 export const getMissedActions = asyncHandler(async (req, res) => {
-  // Option: limit to the currently logged in ASHA worker
-  // const ashaId = req.user && req.user.role === 'ASHA' ? req.user._id : null;
-  // Currently we will just fetch all globally, or use a query parameter:
-  const ashaId = req.query.ashaId || null;
+  // Aggressively isolate DB responses directly using the secure JWT Token ID
+  const ashaId = req.user ? req.user._id : null;
 
   const missedActions = await complianceService.detectMissedActions(ashaId);
-
   res.status(200).json({ success: true, count: missedActions.length, missedActions });
 });
 
@@ -60,4 +57,13 @@ export const resolveMissedTask = asyncHandler(async (req, res) => {
   
   const compliance = await complianceService.resolveMissedTask(taskId);
   res.status(200).json({ success: true, compliance });
+});
+
+// @desc    Delete a compliance log from history or dashboard
+// @route   DELETE /compliance/:id
+// @access  Private
+export const deleteComplianceRecord = asyncHandler(async (req, res) => {
+  const taskId = req.params.id;
+  await complianceService.deleteComplianceRecord(taskId);
+  res.status(200).json({ success: true, message: 'Compliance record officially deleted' });
 });

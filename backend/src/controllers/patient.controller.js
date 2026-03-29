@@ -31,9 +31,9 @@ export const bulkRegister = asyncHandler(async (req, res) => {
 // @route   GET /patients/search
 // @access  Private
 export const searchPatients = asyncHandler(async (req, res) => {
-  const { q, village, region } = req.query;
-  // Ensure we selectively pass the logged in ASHA worker's ID to filter their specific assigned patients
-  const ashaId = req.user && req.user.role === 'ASHA' ? req.user._id : null;
+  const { q, village, region, assigned } = req.query;
+  // If the client explicitly requests just their assigned patients, enforce isolation
+  const ashaId = assigned === 'true' && req.user ? req.user._id : null;
   const patients = await patientService.searchPatients(q, village, region, ashaId);
   res.status(200).json(patients);
 });
