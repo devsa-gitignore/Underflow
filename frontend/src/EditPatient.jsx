@@ -17,6 +17,8 @@ export default function EditPatient() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isListening, setIsListening] = useState(false);
+  const [speechLanguage, setSpeechLanguage] = useState('en-IN');
 
   const text = appLanguage === 'hi'
     ? {
@@ -161,6 +163,33 @@ export default function EditPatient() {
 
   const handleNext = () => setStep(prev => Math.min(prev + 1, 5));
   const handleBack = () => setStep(prev => Math.max(prev - 1, 1));
+
+  const toggleListening = () => {
+    if (isListening) return; 
+    
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Speech recognition is not supported in your current browser.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = speechLanguage;
+    recognition.interimResults = false;
+
+    recognition.onstart = () => setIsListening(true);
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      setFormData(prev => ({ 
+        ...prev, 
+        notes: prev.notes + (prev.notes ? ' ' : '') + transcript 
+      }));
+    };
+    recognition.onerror = () => setIsListening(false);
+    recognition.onend = () => setIsListening(false);
+
+    recognition.start();
+  };
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
@@ -319,8 +348,48 @@ export default function EditPatient() {
 
               {step === 5 && (
                 <div className="space-y-6">
-                  <h3 className="text-lg font-bold text-slate-900">Final Notes</h3>
-                  <textarea name="notes" value={formData.notes} onChange={handleInputChange} rows={6} className={textareaClassName} />
+                  <div className="flex justify-between items-end mb-2">
+                    <h3 className="text-lg font-bold text-slate-900">Final Notes</h3>
+                    <div className="flex items-center gap-2 bg-white border border-slate-200 px-3 py-1.5 rounded-md shadow-sm">
+                      <Languages size={14} className="text-slate-400" />
+                      <select 
+                        value={speechLanguage}
+                        onChange={(e) => setSpeechLanguage(e.target.value)}
+                        className="text-xs font-medium text-slate-600 bg-transparent focus:outline-none cursor-pointer"
+                      >
+                        <option value="en-IN">English (India)</option>
+                        <option value="hi-IN">Hindi</option>
+                        <option value="mr-IN">Marathi</option>
+                        <option value="bn-IN">Bengali</option>
+                      </select>
+                    </div>
+                  </div>
+                  
+                  <div className="relative">
+                    <textarea 
+                      name="notes" 
+                      value={formData.notes} 
+                      onChange={handleInputChange} 
+                      rows={6} 
+                      className={`${textareaClassName} pb-20 font-medium`}
+                    ></textarea>
+                    
+                    {/* Interactive Mic Button (Enlarged) */}
+                    <button 
+                      onClick={toggleListening}
+                      className={`absolute bottom-4 right-4 px-6 py-3 rounded-full flex items-center gap-3 transition-all shadow-lg active:scale-95 ${
+                        isListening 
+                          ? 'bg-red-500 text-white animate-pulse shadow-red-500/40 ring-4 ring-red-500/20' 
+                          : 'bg-emerald-600 text-white hover:bg-emerald-500 shadow-emerald-500/30 hover:shadow-emerald-500/50'
+                      }`}
+                      title="Start Voice Typing"
+                    >
+                      {isListening ? <Mic size={24} /> : <Mic size={24} />}
+                      <span className="text-sm font-extrabold tracking-wide">
+                        {isListening ? 'Listening...' : 'Dictate'}
+                      </span>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

@@ -570,17 +570,23 @@ export default function AddPatient() {
                       value={formData.notes} 
                       onChange={handleInputChange} 
                       rows="4"
-                      className={`${textareaClassName} pb-12 font-medium`}
+                      className={`${textareaClassName} pb-20 font-medium`}
                     ></textarea>
                     
-                    {/* Interactive Mic Button */}
+                    {/* Interactive Mic Button (Enlarged for visibility) */}
                     <button 
                       onClick={toggleListening}
-                      className={`absolute bottom-3 right-3 px-3 py-2 rounded-full flex items-center gap-2 transition-all shadow-sm ${isListening ? 'bg-red-500 text-white animate-pulse' : 'bg-slate-100 text-slate-600 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 border border-transparent'}`}
+                      className={`absolute bottom-4 right-4 px-6 py-3 rounded-full flex items-center gap-3 transition-all shadow-lg active:scale-95 ${
+                        isListening 
+                          ? 'bg-red-500 text-white animate-pulse shadow-red-500/40 ring-4 ring-red-500/20' 
+                          : 'bg-emerald-600 text-white hover:bg-emerald-500 shadow-emerald-500/30 hover:shadow-emerald-500/50'
+                      }`}
                       title="Start Voice Typing"
                     >
-                      {isListening ? <Mic size={16} /> : <MicOff size={16} />}
-                      {isListening && <span className="text-xs font-bold pr-1">Listening...</span>}
+                      {isListening ? <Mic size={24} /> : <Mic size={24} />}
+                      <span className="text-sm font-extrabold tracking-wide">
+                        {isListening ? 'Listening...' : 'Dictate'}
+                      </span>
                     </button>
                   </div>
                 </div>
