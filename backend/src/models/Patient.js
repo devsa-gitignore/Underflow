@@ -56,6 +56,10 @@ const patientSchema = new mongoose.Schema(
       type: String,
     default: 'Awaiting Assessment',
     },
+    lastVisitedAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,

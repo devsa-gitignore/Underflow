@@ -96,52 +96,6 @@ export default function PatientProfile() {
   });
 
   useEffect(() => {
-    const fetchPatient = async () => {
-      setIsLoading(true);
-      try {
-        const token = await getStoredToken();
-        const response = await fetch(`http://localhost:5000/patients/${routeId}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        if (!response.ok) throw new Error('Patient fetch returned non-OK');
-        const p = await response.json();
-        const nameParts = (p.name || 'Unknown Patient').split(' ');
-        const riskRaw = (p.currentRiskLevel || 'LOW').toLowerCase();
-        setPatient({
-          id: p._id,
-          firstName: nameParts[0],
-          lastName: nameParts.slice(1).join(' ') || '',
-          age: p.age || '--',
-          gender: p.gender || 'Unknown',
-          phone: p.phone || 'N/A',
-          ward: p.village || 'Unassigned',
-          category: p.isPregnant ? 'Maternal' : 'General',
-          riskStatus: (riskRaw === 'critical' || riskRaw === 'high') ? 'red' :
-              riskRaw === 'medium' ? 'yellow' : 'green',
-          registrationDate: p.createdAt ? new Date(p.createdAt).toLocaleDateString() : new Date().toLocaleDateString(),
-          pendingTask: p.pendingTask || 'Routine Checkup'
-        });
-      } catch {
-        console.error("Patient fetch failed, using fallback mock data.");
-        // Fallback for Hackathon demo if Backend is down
-        setPatient({
-          id: routeId,
-          firstName: 'Aarti',
-          lastName: 'Sharma',
-          age: 28,
-          gender: 'Female',
-          phone: '+91 9876543210',
-          ward: 'Ward 4',
-          category: 'Maternal', // FORCES TIMELINE TO SHOW!
-          riskStatus: 'red',
-          registrationDate: new Date().toLocaleDateString()
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
     fetchPatient();
   }, [routeId]);
 
@@ -158,6 +112,52 @@ export default function PatientProfile() {
   const [visitAIResult, setVisitAIResult] = useState(null);
   const [visitSuccess, setVisitSuccess] = useState(false);
 
+  const fetchPatient = async () => {
+    setIsLoading(true);
+    try {
+      const token = await getStoredToken();
+      const response = await fetch(`http://localhost:5000/patients/${routeId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!response.ok) throw new Error('Patient fetch returned non-OK');
+      const p = await response.json();
+      const nameParts = (p.name || 'Unknown Patient').split(' ');
+      const riskRaw = (p.currentRiskLevel || 'LOW').toLowerCase();
+      setPatient({
+        id: p._id,
+        firstName: nameParts[0],
+        lastName: nameParts.slice(1).join(' ') || '',
+        age: p.age || '--',
+        gender: p.gender || 'Unknown',
+        phone: p.phone || 'N/A',
+        ward: p.village || 'Unassigned',
+        category: p.isPregnant ? 'Maternal' : 'General',
+        riskStatus: (riskRaw === 'critical' || riskRaw === 'high') ? 'red' :
+          riskRaw === 'medium' ? 'yellow' : 'green',
+        registrationDate: p.createdAt ? new Date(p.createdAt).toLocaleDateString() : new Date().toLocaleDateString(),
+        pendingTask: p.pendingTask || 'Routine Checkup'
+      });
+    } catch {
+      console.error("Patient fetch failed, using fallback mock data.");
+      setPatient({
+        id: routeId,
+        firstName: 'Aarti',
+        lastName: 'Sharma',
+        age: 28,
+        gender: 'Female',
+        phone: '+91 9876543210',
+        ward: 'Ward 4',
+        category: 'Maternal',
+        riskStatus: 'red',
+        registrationDate: new Date().toLocaleDateString()
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const openVisitModal = () => {
     setVisitForm({ bp: '', weight: '', bloodSugar: '', symptoms: '', otherFactors: '', notes: '' });
     setVisitStep(1);
@@ -166,26 +166,110 @@ export default function PatientProfile() {
     setShowVisitModal(true);
   };
 
+  const fetchVisits = async () => {
+    try {
+      const token = await getStoredToken();
+      const response = await fetch(`http://localhost:5000/patients/${routeId}/visits`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.length > 0) {
+          setVisits(data.map(mapVisitData));
+          return;
+        }
+      }
+    } catch {
+      // Backend unreachable
+    }
+    setVisits(mockVisits);
+  };
+
   const submitVisit = async () => {
     setVisitSubmitting(true);
     setVisitAIResult(null);
     try {
       const token = await getStoredToken();
-      // 1. Log the visit
-      const visitPayload = {
-        patientId: routeId,
-        vitals: { bloodPressure: visitForm.bp, weight: parseFloat(visitForm.weight) || undefined },
-        symptoms: visitForm.symptoms ? visitForm.symptoms.split(',').map(s => s.trim()) : [],
-        notes: visitForm.notes,
-        otherFactors: visitForm.otherFactors,
-      };
-      await fetch(`http://localhost:5000/patients/${routeId}/visits`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(visitPayload),
-      });
+      if (visitForm) {
+        const riskRequestPayload = {
+          patientId: routeId,
+          bp: visitForm.bp,
+          weight: visitForm.weight,
+          bloodSugar: visitForm.bloodSugar,
+          symptoms: visitForm.symptoms || 'None',
+          otherFactors: visitForm.otherFactors || `Age: ${patient.age}, Category: ${patient.category}`,
+        };
 
-      // 2. Run AI risk assessment with the new vitals
+        let assessedRisk = null;
+        let assessedSuggestion = null;
+        let assessedCondition = null;
+        let assessedImmediateAction = false;
+
+        try {
+          const assessmentResponse = await fetch('http://localhost:5000/ai/risk-assessment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify(riskRequestPayload),
+          });
+
+          if (assessmentResponse.ok) {
+            const assessmentData = await assessmentResponse.json();
+            assessedRisk = assessmentData.data?.riskLevel || null;
+            assessedSuggestion = assessmentData.data?.adviceForAshaWorker || null;
+            assessedCondition = assessmentData.data?.possibleCondition || null;
+            assessedImmediateAction = Boolean(assessmentData.data?.immediateActionRequired);
+          }
+        } catch {
+          // Let backend heuristics infer risk if live AI is unavailable.
+        }
+
+        const visitPayload = {
+          patientId: routeId,
+          vitals: { bloodPressure: visitForm.bp, weight: parseFloat(visitForm.weight) || undefined },
+          symptoms: visitForm.symptoms ? visitForm.symptoms.split(',').map((symptom) => symptom.trim()) : [],
+          notes: visitForm.notes,
+          otherFactors: visitForm.otherFactors,
+          riskLevel: assessedRisk || undefined,
+          aiSuggestion: assessedSuggestion || undefined,
+        };
+
+        try {
+          const visitResponse = await fetch(`http://localhost:5000/patients/${routeId}/visits`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify(visitPayload),
+          });
+
+          if (!visitResponse.ok) {
+            throw new Error('Visit could not be saved.');
+          }
+
+          const savedVisit = await visitResponse.json();
+          setVisitAIResult({
+            riskLevel: savedVisit.riskLevel || assessedRisk || 'LOW',
+            possibleCondition: assessedCondition || 'Visit recorded successfully',
+            immediateActionRequired: assessedImmediateAction || savedVisit.riskLevel === 'HIGH' || savedVisit.riskLevel === 'CRITICAL',
+            adviceForAshaWorker: savedVisit.aiSuggestion || assessedSuggestion || 'Continue monitoring as per protocol.',
+          });
+          setVisitSuccess(true);
+          await Promise.all([fetchVisits(), fetchPatient()]);
+          return;
+        } catch (error) {
+          if (isOfflineError(error)) {
+            enqueueAction('ADD_VISIT', visitPayload);
+            setVisitAIResult({
+              riskLevel: 'MEDIUM',
+              possibleCondition: 'Offline mode',
+              immediateActionRequired: false,
+              adviceForAshaWorker: 'Visit saved for sync. Risk will be recalculated once the backend is reachable.',
+            });
+            setVisitSuccess(true);
+            return;
+          }
+
+          throw error;
+        }
+      }
       const aiPayload = {
         patientId: routeId,
         bp: visitForm.bp,
@@ -194,13 +278,61 @@ export default function PatientProfile() {
         symptoms: visitForm.symptoms || 'None',
         otherFactors: visitForm.otherFactors || `Age: ${patient.age}, Category: ${patient.category}`,
       };
-      const aiRes = await fetch('http://localhost:5000/ai/risk-assessment', {
+
+      let assessedRisk = null;
+      let assessedSuggestion = null;
+      let assessedCondition = null;
+      let assessedImmediateAction = false;
+
+      try {
+        const aiRes = await fetch('http://localhost:5000/ai/risk-assessment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify(aiPayload),
+        });
+
+        if (aiRes.ok) {
+          const aiData = await aiRes.json();
+          assessedRisk = aiData.data?.riskLevel || null;
+          assessedSuggestion = aiData.data?.adviceForAshaWorker || null;
+          assessedCondition = aiData.data?.possibleCondition || null;
+          assessedImmediateAction = Boolean(aiData.data?.immediateActionRequired);
+        }
+      } catch {
+        // Let backend visit heuristics infer risk if the AI endpoint is unavailable.
+      }
+
+      const visitPayload = {
+        patientId: routeId,
+        vitals: { bloodPressure: visitForm.bp, weight: parseFloat(visitForm.weight) || undefined },
+        symptoms: visitForm.symptoms ? visitForm.symptoms.split(',').map(s => s.trim()) : [],
+        notes: visitForm.notes,
+        otherFactors: visitForm.otherFactors,
+        riskLevel: assessedRisk || undefined,
+        aiSuggestion: assessedSuggestion || undefined,
+      };
+      const visitResponse = await fetch(`http://localhost:5000/patients/${routeId}/visits`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(aiPayload),
+        body: JSON.stringify(visitPayload),
       });
-      if (aiRes.ok) {
-        const aiData = await aiRes.json();
+
+      // 2. Run AI risk assessment with the new vitals
+      const legacyAiPayload = {
+        patientId: routeId,
+        bp: visitForm.bp,
+        weight: visitForm.weight,
+        bloodSugar: visitForm.bloodSugar,
+        symptoms: visitForm.symptoms || 'None',
+        otherFactors: visitForm.otherFactors || `Age: ${patient.age}, Category: ${patient.category}`,
+      };
+      const legacyAiRes = await fetch('http://localhost:5000/ai/risk-assessment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(legacyAiPayload),
+      });
+      if (legacyAiRes.ok) {
+        const aiData = await legacyAiRes.json();
         setVisitAIResult(aiData.data);
       } else {
         // Fallback demo result
