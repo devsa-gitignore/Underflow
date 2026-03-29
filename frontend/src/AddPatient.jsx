@@ -177,26 +177,9 @@ export default function AddPatient() {
 
       const createData = await createResponse.json();
 
-<<<<<<< HEAD
-        if (!qrResponse.ok) throw new Error("Failed to generate QR code");
-
-        const qrData = await qrResponse.json();
-        setQrCodeUrl(qrData.qrCode); // Backend returns dataURL/Base64
-      } catch (networkError) {
-        if (isOfflineError(networkError)) {
-          console.warn("Offline detected. Queueing Patient Creation.");
-          patientId = enqueueAction('CREATE_PATIENT', patientPayload);
-          // Generate QR locally using qrcode package
-          const localQr = await QRCode.toDataURL(String(patientId), { width: 200, margin: 2 });
-          setQrCodeUrl(localQr);
-        } else {
-          throw networkError; // Re-throw if it wasn't a network issue
-        }
-=======
       if (!createResponse.ok) {
         console.error("❌ Backend Error:", createData);
         throw new Error(createData.message || "Failed to create patient record");
->>>>>>> 9e0737e (feat: implement OTP login, dynamic profile selection, and patient creation fixes)
       }
       
       const patientId = createData._id;
@@ -219,12 +202,6 @@ export default function AddPatient() {
 
       setQrCodeUrl(qrData.qrCode); // Backend returns dataURL/Base64
       
-<<<<<<< HEAD
-      // Fallback for demo — generate QR locally
-      const mockId = `SS-${Math.floor(100000 + Math.random() * 900000)}`;
-      const fallbackQr = await QRCode.toDataURL(mockId, { width: 200, margin: 2 });
-      setQrCodeUrl(fallbackQr);
-=======
     } catch (error) {
       console.error("🛑 Registration Workflow Error:", error);
       
@@ -235,7 +212,6 @@ export default function AddPatient() {
       } else {
         alert(`Integration Error: ${error.message}`);
       }
->>>>>>> 9e0737e (feat: implement OTP login, dynamic profile selection, and patient creation fixes)
     } finally {
       setIsGeneratingQR(false);
     }
