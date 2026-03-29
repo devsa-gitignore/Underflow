@@ -97,6 +97,8 @@ function mapPatients(data) {
       age: patient.age,
       village: patient.village || 'Unassigned',
       isPregnant: patient.isPregnant,
+      pendingTask: patient.pendingTask || 'Awaiting Assessment',
+      lastVisitedAt: patient.lastVisitedAt || null,
       risk,
       issue: patient.pendingTask || (patient.isPregnant ? 'Pregnancy Tracking' : 'Routine Checkup'),
       time: risk === 'red' ? 'Overdue' : risk === 'yellow' ? 'Today' : 'On Track',
@@ -244,7 +246,19 @@ export default function Dashboard() {
     reader.readAsDataURL(file);
   };
 
-  const sortedPatients = [...patients].sort((a, b) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const queuePatients = patients.filter((patient) => {
+    if (patient.pendingTask === 'Completed Today' && patient.lastVisitedAt) {
+      const visitDate = new Date(patient.lastVisitedAt);
+      visitDate.setHours(0, 0, 0, 0);
+      return visitDate.getTime() !== today.getTime();
+    }
+    return patient.pendingTask !== 'Completed Today';
+  });
+
+  const sortedPatients = [...queuePatients].sort((a, b) => {
     const rank = { red: 0, yellow: 1, green: 2 };
     return rank[a.risk] - rank[b.risk];
   });
