@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ClipboardList, CalendarX2, CheckCircle2, RotateCw, Activity, Syringe, Stethoscope, AlertTriangle, History, X, Plus, ChevronDown, Trash2 } from 'lucide-react';
+import { ClipboardList, CalendarX2, CheckCircle2, RotateCw, Activity, Syringe, Stethoscope, AlertTriangle, History, X, Plus, ChevronDown, Trash2, Edit3 } from 'lucide-react';
 import { getStoredToken } from './auth-utils';
 import { useLanguage } from './language-context';
 
@@ -41,7 +41,7 @@ export default function TasksPage() {
   const [showLogModal, setShowLogModal] = useState(false);
   const [showPatientListModal, setShowPatientListModal] = useState(false);
   const [allPatients, setAllPatients] = useState([]);
-  const [logForm, setLogForm] = useState({ patientId: '', type: 'VACCINATION', status: 'PENDING' });
+  const [logForm, setLogForm] = useState({ patientId: '', type: 'VACCINATION', status: 'PENDING', notes: '' });
 
   const navigate = useNavigate();
   const { language } = useLanguage();
@@ -200,6 +200,34 @@ export default function TasksPage() {
     }
   };
 
+  const handleEditNote = async (taskId, currentNotes, isHistory = false) => {
+    const newNotes = window.prompt("Edit Note:", currentNotes || "");
+    if (newNotes === null) return; // User cancelled
+
+    setUpdatingId(taskId);
+    try {
+      const token = await getStoredToken();
+      const res = await fetch(`http://localhost:5000/compliance/${taskId}/notes`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ notes: newNotes })
+      });
+      if (res.ok) {
+        if (isHistory) {
+          setHistoryData(prev => prev.map(t => t._id === taskId ? { ...t, notes: newNotes } : t));
+        } else {
+          setTasks(prev => prev.map(t => t._id === taskId ? { ...t, notes: newNotes } : t));
+        }
+      } else {
+        alert("Failed to update note.");
+      }
+    } catch {
+      alert("Error updating note.");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
   const validTasks = tasks.filter(t => t && t.patientId);
 
   return (
@@ -277,10 +305,20 @@ export default function TasksPage() {
                             {task.type}
                           </span>
                         </div>
-                        <p className="text-sm font-medium text-slate-600 flex items-center gap-1.5">
+                        <p className="text-sm font-medium text-slate-600 flex items-center gap-1.5 mt-1">
                           <CalendarX2 size={16} className={task.status === 'PENDING' ? 'text-blue-400' : 'text-slate-400'} />
                           {task.status === 'PENDING' ? 'Scheduled for:' : 'Missed since:'} <span className="font-semibold text-slate-700">{new Date(task.date).toLocaleDateString()}</span>
                         </p>
+                        <div className="flex items-start gap-2 mt-2">
+                          {task.notes ? (
+                            <p className="text-xs text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-100 flex-1 relative pr-8">
+                              "{task.notes}"
+                              <button onClick={() => handleEditNote(task._id, task.notes)} className="absolute right-2 top-2 text-slate-400 hover:text-blue-500 transition-colors bg-slate-50 pl-1"><Edit3 size={14}/></button>
+                            </p>
+                          ) : (
+                            <button onClick={() => handleEditNote(task._id, "")} className="text-xs text-blue-500 font-semibold flex items-center gap-1 hover:underline"><Plus size={12}/> Add Note</button>
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -359,8 +397,18 @@ export default function TasksPage() {
                               </span>
                             </div>
                             <p className="text-xs font-semibold text-slate-500 mb-1">{new Date(log.date).toLocaleString()}</p>
+                            <div className="flex items-start gap-2 mt-1 w-full">
+                              {log.notes ? (
+                                <p className="text-xs text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-100 flex-1 relative pr-8">
+                                  "{log.notes}"
+                                  <button onClick={() => handleEditNote(log._id, log.notes, true)} className="absolute right-2 top-2 text-slate-400 hover:text-blue-500 transition-colors bg-slate-50 pl-1"><Edit3 size={14}/></button>
+                                </p>
+                              ) : (
+                                <button onClick={() => handleEditNote(log._id, "", true)} className="text-xs text-blue-500 font-medium flex items-center gap-1 hover:underline"><Plus size={12}/> Add Note</button>
+                              )}
+                            </div>
                           </div>
-                          <button 
+                          <button  
                             onClick={() => handleDeleteTask(log._id, true)}
                             disabled={updatingId === log._id}
                             className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all ml-auto disabled:opacity-50"
@@ -446,6 +494,16 @@ export default function TasksPage() {
                       <ChevronDown size={18} />
                     </div>
                   </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Optional Notes</label>
+                  <input 
+                    type="text" 
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all focus:bg-white hover:bg-white" 
+                    placeholder="Enter context or details..." 
+                    value={logForm.notes} 
+                    onChange={e => setLogForm({...logForm, notes: e.target.value})} 
+                  />
                 </div>
                 <button type="submit" disabled={updatingId === 'new' || !logForm.patientId} className="w-full mt-4 px-6 py-3.5 bg-emerald-600 text-white rounded-xl font-bold text-sm hover:bg-emerald-500 transition-all shadow-[0_4px_15px_rgba(16,185,129,0.2)] flex justify-center items-center gap-2 disabled:opacity-50">
                   {updatingId === 'new' ? <RotateCw size={18} className="animate-spin" /> : <Plus size={18} />} Save Record

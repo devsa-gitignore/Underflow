@@ -5,7 +5,7 @@ import Patient from '../models/Patient.js';
  * Log a new compliance record (e.g. VACCINATION COMPLETED, CHECKUP MISSED)
  */
 export const logCompliance = async (data, userRole = 'ASHA') => {
-  const { patientId, ashaId, type, status, date } = data;
+  const { patientId, ashaId, type, status, notes, date } = data;
 
   const patient = await Patient.findById(patientId);
   if (!patient) throw new Error('Patient not found');
@@ -20,6 +20,7 @@ export const logCompliance = async (data, userRole = 'ASHA') => {
     ashaId,
     type,
     status,
+    notes,
     date: date || Date.now()
   });
 
@@ -81,5 +82,17 @@ export const resolveMissedTask = async (taskId) => {
 export const deleteComplianceRecord = async (taskId) => {
   const compliance = await Compliance.findByIdAndDelete(taskId);
   if (!compliance) throw new Error('Compliance record not found');
+  return compliance;
+};
+
+/**
+ * Update the optional notes attached to a compliance action
+ */
+export const updateComplianceNote = async (taskId, newNotes) => {
+  const compliance = await Compliance.findById(taskId);
+  if (!compliance) throw new Error('Compliance record not found');
+  
+  compliance.notes = newNotes;
+  await compliance.save();
   return compliance;
 };

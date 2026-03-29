@@ -23,6 +23,10 @@ const complianceSchema = new mongoose.Schema(
       enum: [STATUS.COMPLETED, STATUS.MISSED, STATUS.PENDING],
       required: true,
     },
+    notes: {
+      type: String,
+      trim: true,
+    },
     date: {
       type: Date,
       default: Date.now,

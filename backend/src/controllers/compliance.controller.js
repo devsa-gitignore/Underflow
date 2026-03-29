@@ -5,7 +5,7 @@ import * as complianceService from '../services/compliance.service.js';
 // @route   POST /compliance
 // @access  Private (ASHA Worker usually)
 export const logCompliance = asyncHandler(async (req, res) => {
-  const { patientId, type, status, date } = req.body;
+  const { patientId, type, status, date, notes } = req.body;
   
   if (!patientId || !type || !status) {
     res.status(400);
@@ -21,6 +21,7 @@ export const logCompliance = asyncHandler(async (req, res) => {
     ashaId,
     type,
     status,
+    notes,
     date
   }, role);
 
@@ -66,4 +67,15 @@ export const deleteComplianceRecord = asyncHandler(async (req, res) => {
   const taskId = req.params.id;
   await complianceService.deleteComplianceRecord(taskId);
   res.status(200).json({ success: true, message: 'Compliance record officially deleted' });
+});
+
+// @desc    Edit the notes on an existing compliance record
+// @route   PATCH /compliance/:id/notes
+// @access  Private
+export const updateComplianceNote = asyncHandler(async (req, res) => {
+  const taskId = req.params.id;
+  const { notes } = req.body;
+  
+  const compliance = await complianceService.updateComplianceNote(taskId, notes);
+  res.status(200).json({ success: true, compliance });
 });
