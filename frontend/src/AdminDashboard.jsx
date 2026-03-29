@@ -57,12 +57,41 @@ export default function AdminDashboard() {
   const [aiAlerts, setAiAlerts] = useState(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
 
+  const [dashboardStats, setDashboardStats] = useState({
+    totalPatients: 0,
+    maternalCount: 0,
+    activeAlerts: 0,
+    activeWorkers: 0,
+    syncedLast24h: 0
+  });
+  const [wardStats, setWardStats] = useState([]);
+  const [trendStats, setTrendStats] = useState([]);
+
   useEffect(() => {
-    const fetchWorkers = async () => {
+    const fetchAdminData = async () => {
       try {
-        const response = await fetch('http://localhost:5000/auth/workers');
-        if (response.ok) {
-          const result = await response.json();
+        const statsRes = await fetch('http://localhost:5000/admin/stats');
+        if (statsRes.ok) {
+          const result = await statsRes.json();
+          if (result.success) setDashboardStats(result.data);
+        }
+
+        const wardRes = await fetch('http://localhost:5000/admin/ward-stats');
+        if (wardRes.ok) {
+          const result = await wardRes.json();
+          if (result.success) setWardStats(result.data);
+        }
+
+        const trendRes = await fetch('http://localhost:5000/admin/trend-stats');
+        if (trendRes.ok) {
+          const result = await trendRes.json();
+          if (result.success) setTrendStats(result.data);
+        }
+
+        // Keep field workers fetch for the fleets view
+        const workerRes = await fetch('http://localhost:5000/auth/workers');
+        if (workerRes.ok) {
+          const result = await workerRes.json();
           if (result.success && Array.isArray(result.data)) {
              const mapped = result.data.map((w, idx) => ({
                 id: w._id || `AW-77${idx}`,
@@ -77,10 +106,10 @@ export default function AdminDashboard() {
           }
         }
       } catch (err) {
-        console.error("Failed to fetch workers", err);
+        console.error("Failed to fetch admin stats", err);
       }
     };
-    fetchWorkers();
+    fetchAdminData();
   }, []);
 
   const runEpidemicAlert = async () => {
@@ -109,6 +138,51 @@ export default function AdminDashboard() {
       setIsAiLoading(false);
     }
   };
+
+  const handleExportCSV = () => {
+    const csvData = [
+      ["Location", "Total Cases", "Critical", "ASHA Assigned"],
+      ...wardStats.map(w => [w.location || "Unknown", w.totalCases, w.criticalCases, w.workerCount])
+    ];
+    
+    const csvContent = "data:text/csv;charset=utf-8," 
+      + csvData.map(e => e.join(",")).join("\n");
+      
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `swasthya_sathi_ward_report_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // --- Chart Math helpers for 7 Day Trend ---
+  const maxTrendCases = React.useMemo(() => {
+    if (trendStats.length === 0) return 10;
+    return Math.max(...trendStats.map(t => t.cases), 10);
+  }, [trendStats]);
+
+  const chartPoints = React.useMemo(() => {
+    if (trendStats.length === 0) return [];
+    // width is 0 to 100, height is 35 (bottom) to 5 (top) so range is 30px
+    return trendStats.map((d, i) => {
+      const x = (i / 6) * 100;
+      const y = 35 - ((d.cases / maxTrendCases) * 30);
+      return { x, y, ...d };
+    });
+  }, [trendStats, maxTrendCases]);
+
+  const chartPathData = React.useMemo(() => {
+    if (chartPoints.length === 0) return { fillPath: '', linePath: '' };
+    const pointsStr = chartPoints.map(p => `L ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
+    return {
+      fillPath: `M 0 40 L 0 ${chartPoints[0].y.toFixed(1)} ${pointsStr.substring(2)} L 100 40 Z`,
+      linePath: `M 0 ${chartPoints[0].y.toFixed(1)} ${pointsStr.substring(2)}`
+    };
+  }, [chartPoints]);
+
+  const weeklySum = trendStats.reduce((sum, d) => sum + d.cases, 0);
 
   return (
     <>
@@ -190,13 +264,17 @@ export default function AdminDashboard() {
             </div>
 
             <div className="flex items-center gap-4 ml-auto">
-              <button className="flex items-center gap-2 text-sm font-semibold text-slate-600 bg-white border border-slate-200 px-4 py-2 rounded-lg hover:bg-slate-50 transition-colors shadow-sm">
+              <button 
+                onClick={handleExportCSV}
+                className="flex items-center gap-2 text-sm font-semibold text-slate-600 bg-white border border-slate-200 px-4 py-2 rounded-lg hover:bg-slate-50 transition-colors shadow-sm">
                 <Download size={16} /> Export Report
               </button>
               <div className="w-px h-6 bg-slate-200 mx-2"></div>
               <button className="relative text-slate-500 hover:text-slate-800 transition-colors p-2">
                 <Bell size={22} />
-                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-severe-glow"></span>
+                {dashboardStats.activeAlerts > 0 && (
+                  <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-severe-glow"></span>
+                )}
               </button>
             </div>
           </header>
@@ -227,8 +305,8 @@ export default function AdminDashboard() {
                         <div className="p-1.5 bg-blue-50 text-blue-600 rounded-md"><Users size={16} /></div>
                       </div>
                       <div>
-                        <span className="text-3xl font-black text-slate-900">14,289</span>
-                        <p className="text-xs font-semibold text-emerald-600 mt-1 flex items-center gap-1"><TrendingUp size={12}/> +124 this week</p>
+                        <span className="text-3xl font-black text-slate-900">{dashboardStats.totalPatients}</span>
+                        <p className="text-xs font-semibold text-emerald-600 mt-1 flex items-center gap-1"><TrendingUp size={12}/> Live Database</p>
                       </div>
                     </MagicBento>
 
@@ -238,8 +316,8 @@ export default function AdminDashboard() {
                         <div className="p-1.5 bg-red-50 text-red-600 rounded-md"><AlertTriangle size={16} /></div>
                       </div>
                       <div>
-                        <span className="text-3xl font-black text-red-600">84</span>
-                        <p className="text-xs font-semibold text-red-600 mt-1 flex items-center gap-1"><TrendingUp size={12}/> +12 requiring transfer</p>
+                        <span className="text-3xl font-black text-red-600">{dashboardStats.activeAlerts}</span>
+                        <p className="text-xs font-semibold text-red-600 mt-1 flex items-center gap-1"><TrendingUp size={12}/> Active Alerts</p>
                       </div>
                     </MagicBento>
 
@@ -249,8 +327,8 @@ export default function AdminDashboard() {
                         <div className="p-1.5 bg-pink-50 text-pink-600 rounded-md"><Activity size={16} /></div>
                       </div>
                       <div>
-                        <span className="text-3xl font-black text-pink-600">1,402</span>
-                        <p className="text-xs font-semibold text-slate-500 mt-1 flex items-center gap-1">89% ANC compliance</p>
+                        <span className="text-3xl font-black text-slate-900">{dashboardStats.maternalCount}</span>
+                        <p className="text-xs font-semibold text-slate-500 mt-1 flex items-center gap-1">Pregnant Patients</p>
                       </div>
                     </MagicBento>
 
@@ -260,8 +338,8 @@ export default function AdminDashboard() {
                         <div className="p-1.5 bg-emerald-50 text-emerald-600 rounded-md"><UserCheck size={16} /></div>
                       </div>
                       <div>
-                        <span className="text-3xl font-black text-slate-900">42<span className="text-lg text-slate-400 font-medium">/45</span></span>
-                        <p className="text-xs font-semibold text-emerald-600 mt-1 flex items-center gap-1"><Clock size={12}/> Synced in last 24h</p>
+                        <span className="text-3xl font-black text-slate-900">{dashboardStats.activeWorkers}</span>
+                        <p className="text-xs font-semibold text-emerald-600 mt-1 flex items-center gap-1"><Clock size={12}/> Actively registered</p>
                       </div>
                     </MagicBento>
                   </div>
@@ -271,7 +349,12 @@ export default function AdminDashboard() {
                     <div className="lg:col-span-2 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex flex-col">
                       <div className="px-6 py-4 border-b border-blue-100 flex justify-between items-center bg-blue-50/45">
                         <h3 className="font-bold text-slate-800">Ward Triage Breakdown</h3>
-                        <button className="text-xs font-bold text-blue-600 hover:text-blue-800 transition-colors">Export CSV</button>
+                        <button 
+                          onClick={handleExportCSV}
+                          className="text-xs font-bold text-blue-600 hover:text-blue-800 transition-colors"
+                        >
+                          Export CSV
+                        </button>
                       </div>
                       <div className="flex-1 overflow-x-auto">
                         <table className="w-full text-left border-collapse">
@@ -284,30 +367,22 @@ export default function AdminDashboard() {
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100">
-                            <tr className="hover:bg-slate-50 transition-colors">
-                              <td className="px-6 py-4 text-sm font-bold text-slate-800">Ward 5 (South)</td>
-                              <td className="px-6 py-4 text-sm font-medium text-slate-600">3,402</td>
-                              <td className="px-6 py-4"><span className="px-2.5 py-1 bg-red-100 text-red-700 font-bold rounded text-xs border border-red-200">42 Cases</span></td>
-                              <td className="px-6 py-4 text-sm font-medium text-slate-600">12 Workers</td>
-                            </tr>
-                            <tr className="hover:bg-slate-50 transition-colors">
-                              <td className="px-6 py-4 text-sm font-bold text-slate-800">Ward 4 (Central)</td>
-                              <td className="px-6 py-4 text-sm font-medium text-slate-600">2,891</td>
-                              <td className="px-6 py-4"><span className="px-2.5 py-1 bg-amber-100 text-amber-700 font-bold rounded text-xs border border-amber-200">18 Cases</span></td>
-                              <td className="px-6 py-4 text-sm font-medium text-slate-600">10 Workers</td>
-                            </tr>
-                            <tr className="hover:bg-slate-50 transition-colors">
-                              <td className="px-6 py-4 text-sm font-bold text-slate-800">Ward 2 (East)</td>
-                              <td className="px-6 py-4 text-sm font-medium text-slate-600">4,105</td>
-                              <td className="px-6 py-4"><span className="px-2.5 py-1 bg-emerald-100 text-emerald-700 font-bold rounded text-xs border border-emerald-200">5 Cases</span></td>
-                              <td className="px-6 py-4 text-sm font-medium text-slate-600">15 Workers</td>
-                            </tr>
-                            <tr className="hover:bg-slate-50 transition-colors">
-                              <td className="px-6 py-4 text-sm font-bold text-slate-800">Ward 1 (North)</td>
-                              <td className="px-6 py-4 text-sm font-medium text-slate-600">1,200</td>
-                              <td className="px-6 py-4"><span className="px-2.5 py-1 bg-emerald-100 text-emerald-700 font-bold rounded text-xs border border-emerald-200">1 Case</span></td>
-                              <td className="px-6 py-4 text-sm font-medium text-slate-600">5 Workers</td>
-                            </tr>
+                            {wardStats.length > 0 ? wardStats.map((ward, idx) => (
+                              <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                                <td className="px-6 py-4 text-sm font-bold text-slate-800">{ward.location || 'Unknown'}</td>
+                                <td className="px-6 py-4 text-sm font-medium text-slate-600">{ward.totalCases}</td>
+                                <td className="px-6 py-4">
+                                  <span className={`px-2.5 py-1 font-bold rounded text-xs border ${ward.criticalCases > 5 ? 'bg-red-100 text-red-700 border-red-200' : ward.criticalCases > 0 ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-emerald-100 text-emerald-700 border-emerald-200'}`}>
+                                    {ward.criticalCases} Cases
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4 text-sm font-medium text-slate-600">{ward.workerCount} Workers</td>
+                              </tr>
+                            )) : (
+                              <tr>
+                                <td colSpan={4} className="px-6 py-8 text-center text-sm font-bold text-slate-500">No Patient Data Found in the Region</td>
+                              </tr>
+                            )}
                           </tbody>
                         </table>
                       </div>
@@ -373,7 +448,7 @@ export default function AdminDashboard() {
                       </div>
                       
                       <div className="flex-1 w-full relative z-0">
-                        <IndiaHeatmap />
+                        <IndiaHeatmap liveData={wardStats} />
                       </div>
                     </div>
 
@@ -388,40 +463,59 @@ export default function AdminDashboard() {
                       <div className="p-6 flex-1 flex flex-col">
                         <div className="flex justify-between items-end mb-6">
                           <div>
-                            <p className="text-3xl font-black text-slate-900">428</p>
-                            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mt-1">Total Active Cases</p>
+                            <p className="text-3xl font-black text-slate-900">{weeklySum}</p>
+                            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mt-1">Registrations (7 Days)</p>
                           </div>
                           <div className="text-emerald-700 text-sm font-bold flex items-center gap-1 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded">
                             ↓ 12%
                           </div>
                         </div>
                         
-                        {/* Pure SVG Line Chart */}
+                        {/* Dynamic SVG Line Chart */}
                         <div className="w-full relative mt-auto h-40">
-                          <svg viewBox="0 0 100 40" className="w-full h-full overflow-visible" preserveAspectRatio="none">
-                            <defs>
-                              <linearGradient id="chart-gradient" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="rgba(37, 99, 235, 0.4)" />
-                                <stop offset="100%" stopColor="rgba(37, 99, 235, 0)" />
-                              </linearGradient>
-                            </defs>
-                            <line x1="0" y1="10" x2="100" y2="10" stroke="#f1f5f9" strokeWidth="0.5" />
-                            <line x1="0" y1="20" x2="100" y2="20" stroke="#f1f5f9" strokeWidth="0.5" />
-                            <line x1="0" y1="30" x2="100" y2="30" stroke="#f1f5f9" strokeWidth="0.5" />
-                            <path d="M0 40 L0 28 Q 15 15, 30 22 T 60 12 T 80 18 T 100 5 L 100 40 Z" fill="url(#chart-gradient)" />
-                            <path d="M0 28 Q 15 15, 30 22 T 60 12 T 80 18 T 100 5" fill="none" stroke="#2563eb" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                            <circle cx="30" cy="22" r="1.5" fill="white" stroke="#2563eb" strokeWidth="1" />
-                            <circle cx="60" cy="12" r="1.5" fill="white" stroke="#2563eb" strokeWidth="1" />
-                            <circle cx="80" cy="18" r="1.5" fill="white" stroke="#2563eb" strokeWidth="1" />
-                            <circle cx="100" cy="5" r="1.5" fill="white" stroke="#2563eb" strokeWidth="1.5" className="animate-pulse" />
-                          </svg>
+                          {chartPoints.length > 0 ? (
+                            <svg viewBox="0 0 100 40" className="w-full h-full overflow-visible" preserveAspectRatio="none">
+                              <defs>
+                                <linearGradient id="chart-gradient" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="0%" stopColor="rgba(37, 99, 235, 0.4)" />
+                                  <stop offset="100%" stopColor="rgba(37, 99, 235, 0)" />
+                                </linearGradient>
+                              </defs>
+                              {/* Grid lines */}
+                              <line x1="0" y1="10" x2="100" y2="10" stroke="#f1f5f9" strokeWidth="0.5" />
+                              <line x1="0" y1="20" x2="100" y2="20" stroke="#f1f5f9" strokeWidth="0.5" />
+                              <line x1="0" y1="30" x2="100" y2="30" stroke="#f1f5f9" strokeWidth="0.5" />
+                              
+                              {/* Area and Line */}
+                              <path d={chartPathData.fillPath} fill="url(#chart-gradient)" className="transition-all duration-700 ease-in-out" />
+                              <path d={chartPathData.linePath} fill="none" stroke="#2563eb" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="transition-all duration-700 ease-in-out" />
+                              
+                              {/* Dots */}
+                              {chartPoints.map((p, i) => (
+                                <circle 
+                                  key={i} 
+                                  cx={p.x} 
+                                  cy={p.y} 
+                                  r="1.5" 
+                                  fill="white" 
+                                  stroke="#2563eb" 
+                                  strokeWidth={i === chartPoints.length - 1 ? "1.5" : "1"} 
+                                  className={`transition-all duration-700 ease-in-out ${i === chartPoints.length - 1 ? 'animate-pulse' : ''}`}
+                                />
+                              ))}
+                            </svg>
+                          ) : (
+                             <div className="w-full h-full flex items-center justify-center text-xs text-slate-400 font-semibold">Loading Trend...</div>
+                          )}
                         </div>
                         
+                        {/* Dynamic X-Axis */}
                         <div className="flex justify-between text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-4">
-                          <span>Mon</span>
-                          <span>Wed</span>
-                          <span>Fri</span>
-                          <span>Today</span>
+                          {trendStats.map((d, i) => (
+                             <span key={i} className="w-8 text-center" style={{opacity: (i % 2 === 0) ? 1 : 0}}>
+                               {d.dayName}
+                             </span>
+                          ))}
                         </div>
                       </div>
                     </div>

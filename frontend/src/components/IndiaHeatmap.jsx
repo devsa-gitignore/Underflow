@@ -2,17 +2,29 @@ import React, { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, CircleMarker, Tooltip, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 
-// Mock localized severity data (villages/wards instead of states)
+const LOCATION_COORDS = {
+  "Ward 1 (North)": { lat: 23.2800, Lng: 77.4000 },
+  "Ward 1": { lat: 23.2800, Lng: 77.4000 },
+  "Ward 2 (East)": { lat: 23.2550, Lng: 77.4500 },
+  "Ward 2": { lat: 23.2550, Lng: 77.4500 },
+  "Ward 3 (West)": { lat: 23.2650, Lng: 77.3700 },
+  "Ward 3": { lat: 23.2650, Lng: 77.3700 },
+  "Ward 4 (Central)": { lat: 23.2599, Lng: 77.4126 },
+  "Ward 4": { lat: 23.2599, Lng: 77.4126 },
+  "Ward 5 (South)": { lat: 23.2300, Lng: 77.4200 },
+  "Ward 5": { lat: 23.2300, Lng: 77.4200 },
+  "Rampur Village": { lat: 23.3100, Lng: 77.4400 },
+  "Shivnagar": { lat: 23.2200, Lng: 77.3800 },
+  "Kalyanpur": { lat: 23.2900, Lng: 77.4800 },
+  "Tulsi Wadi": { lat: 23.2400, Lng: 77.4900 },
+};
+
+// Fallback data if API doesn't return anything yet
 const mockVillages = [
   { id: 1, name: "Ward 1 (North)", lat: 23.2800, Lng: 77.4000, totalCases: 10, highRiskCases: 2, maternalCases: 5 },
   { id: 2, name: "Ward 2 (East)", lat: 23.2550, Lng: 77.4500, totalCases: 42, highRiskCases: 12, maternalCases: 15 },
-  { id: 3, name: "Ward 3 (West)", lat: 23.2650, Lng: 77.3700, totalCases: 18, highRiskCases: 4, maternalCases: 8 },
   { id: 4, name: "Ward 4 (Central)", lat: 23.2599, Lng: 77.4126, totalCases: 5, highRiskCases: 0, maternalCases: 3 },
-  { id: 5, name: "Ward 5 (South)", lat: 23.2300, Lng: 77.4200, totalCases: 85, highRiskCases: 35, maternalCases: 20 },
-  { id: 6, name: "Rampur Village", lat: 23.3100, Lng: 77.4400, totalCases: 65, highRiskCases: 30, maternalCases: 10 },
-  { id: 7, name: "Shivnagar", lat: 23.2200, Lng: 77.3800, totalCases: 25, highRiskCases: 5, maternalCases: 12 },
-  { id: 8, name: "Kalyanpur", lat: 23.2900, Lng: 77.4800, totalCases: 50, highRiskCases: 18, maternalCases: 25 },
-  { id: 9, name: "Tulsi Wadi", lat: 23.2400, Lng: 77.4900, totalCases: 12, highRiskCases: 1, maternalCases: 6 },
+  { id: 5, name: "Ward 5 (South)", lat: 23.2300, Lng: 77.4200, totalCases: 85, highRiskCases: 35, maternalCases: 20 }
 ];
 
 const HeatmapStyles = () => {
@@ -122,8 +134,31 @@ function Legend({ filterType }) {
   return null;
 }
 
-export default function RegionalHeatmap() {
-  const [filterType, setFilterType] = useState('highRisk');
+export default function RegionalHeatmap({ liveData = [] }) {
+  const [filterType, setFilterType] = useState('all');
+  
+  // Transform live API data into coordinate-mapped locations
+  const displayVillages = React.useMemo(() => {
+    if (!liveData || liveData.length === 0) return mockVillages;
+
+    return liveData.map((ward, idx) => {
+      // Find coordinates mapping or default to random slight offset near center
+      const coords = LOCATION_COORDS[ward.location] || {
+        lat: 23.2599 + (Math.random() * 0.05 - 0.025),
+        Lng: 77.4126 + (Math.random() * 0.05 - 0.025)
+      };
+
+      return {
+        id: idx,
+        name: ward.location || "Unknown Location",
+        lat: coords.lat,
+        Lng: coords.Lng,
+        totalCases: ward.totalCases || 0,
+        highRiskCases: ward.criticalCases || 0,
+        maternalCases: ward.maternalCases || 0
+      };
+    });
+  }, [liveData]);
   
   // Center map closely around our mock regions
   const mapCenter = [23.2599, 77.4126];
@@ -167,7 +202,7 @@ export default function RegionalHeatmap() {
           url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
         />
         
-        {mockVillages.map((village) => {
+        {displayVillages.map((village) => {
            const activeCases = getDisplayValue(village);
            
            // We scale the circle radius slightly based on cases to accentuate hotspots
