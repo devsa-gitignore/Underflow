@@ -5,7 +5,7 @@ import Patient from '../models/Patient.js';
  * Log a new compliance record (e.g. VACCINATION COMPLETED, CHECKUP MISSED)
  */
 export const logCompliance = async (data, userRole = 'ASHA') => {
-  const { patientId, ashaId, type, status, notes, date } = data;
+  const { patientId, ashaId, type, status, date } = data;
 
   const patient = await Patient.findById(patientId);
   if (!patient) throw new Error('Patient not found');
@@ -20,7 +20,6 @@ export const logCompliance = async (data, userRole = 'ASHA') => {
     ashaId,
     type,
     status,
-    notes,
     date: date || Date.now()
   });
 
@@ -41,10 +40,11 @@ export const getPatientComplianceHistory = async (patientId) => {
 };
 
 /**
- * Detect globally missed actions, optionally filtered by an ASHA worker ID
+ * Detect globally missed or pending actions, optionally filtered by an ASHA worker ID
  */
 export const detectMissedActions = async (ashaId = null) => {
-  const query = { status: 'MISSED' };
+  // Fetch both MISSED and Scheduled (PENDING) tasks so the worker can action them
+  const query = { status: { $in: ['MISSED', 'PENDING'] } };
   
   if (ashaId) {
     query.ashaId = ashaId; // If filtering by the requesting ASHA worker
@@ -59,4 +59,21 @@ export const detectMissedActions = async (ashaId = null) => {
     .sort({ date: -1 });
 
   return missedActions;
+};
+
+/**
+ * Specifically resolve an existing MISSED or PENDING action by changing its status to COMPLETED
+ */
+export const resolveMissedTask = async (taskId) => {
+  const compliance = await Compliance.findById(taskId);
+  if (!compliance) throw new Error('Compliance record not found');
+
+  if (compliance.status !== 'MISSED' && compliance.status !== 'PENDING') {
+    throw new Error('Can only resolve MISSED or PENDING actions');
+  }
+
+  compliance.status = 'COMPLETED';
+  
+  await compliance.save();
+  return compliance;
 };

@@ -32,7 +32,9 @@ export const bulkRegister = asyncHandler(async (req, res) => {
 // @access  Private
 export const searchPatients = asyncHandler(async (req, res) => {
   const { q, village, region } = req.query;
-  const patients = await patientService.searchPatients(q, village, region);
+  // Ensure we selectively pass the logged in ASHA worker's ID to filter their specific assigned patients
+  const ashaId = req.user && req.user.role === 'ASHA' ? req.user._id : null;
+  const patients = await patientService.searchPatients(q, village, region, ashaId);
   res.status(200).json(patients);
 });
 

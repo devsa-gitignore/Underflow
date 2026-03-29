@@ -8,6 +8,7 @@ import AddPatient from './AddPatient';
 import PatientProfile from './PatientProfile';
 import TimelinePage from './TimelinePage';
 import AlertsPage from './AlertsPage';
+import TasksPage from './TasksPage';
 import AdminDashboard from './AdminDashboard';
 import Layout from './Layout';
 import { LanguageProvider } from './LanguageProvider';
@@ -31,7 +32,8 @@ function App() {
               <Route path="/patient/:id" element={<PatientProfile />} />
               <Route path="/patient/:id/pregacare" element={<TimelinePage />} />
               <Route path="/alerts" element={<AlertsPage />} />
-            </Route>
+              <Route path="/tasks" element={<TasksPage />} />
+          </Route>
             
             {/* Standalone Route for Admin */}
             <Route path="/admin" element={<AdminDashboard />} />
