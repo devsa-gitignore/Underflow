@@ -5,7 +5,7 @@ import * as complianceService from '../services/compliance.service.js';
 // @route   POST /compliance
 // @access  Private (ASHA Worker usually)
 export const logCompliance = asyncHandler(async (req, res) => {
-  const { patientId, type, status, date } = req.body;
+  const { patientId, type, status, date, notes } = req.body;
   
   if (!patientId || !type || !status) {
     res.status(400);
@@ -21,6 +21,7 @@ export const logCompliance = asyncHandler(async (req, res) => {
     ashaId,
     type,
     status,
+    notes,
     date
   }, role);
 
@@ -42,13 +43,10 @@ export const getPatientComplianceHistory = asyncHandler(async (req, res) => {
 // @route   GET /compliance/missed
 // @access  Private
 export const getMissedActions = asyncHandler(async (req, res) => {
-  // Option: limit to the currently logged in ASHA worker
-  // const ashaId = req.user && req.user.role === 'ASHA' ? req.user._id : null;
-  // Currently we will just fetch all globally, or use a query parameter:
-  const ashaId = req.query.ashaId || null;
+  // Aggressively isolate DB responses directly using the secure JWT Token ID
+  const ashaId = req.user ? req.user._id : null;
 
   const missedActions = await complianceService.detectMissedActions(ashaId);
-
   res.status(200).json({ success: true, count: missedActions.length, missedActions });
 });
 
@@ -59,5 +57,25 @@ export const resolveMissedTask = asyncHandler(async (req, res) => {
   const taskId = req.params.id;
   
   const compliance = await complianceService.resolveMissedTask(taskId);
+  res.status(200).json({ success: true, compliance });
+});
+
+// @desc    Delete a compliance log from history or dashboard
+// @route   DELETE /compliance/:id
+// @access  Private
+export const deleteComplianceRecord = asyncHandler(async (req, res) => {
+  const taskId = req.params.id;
+  await complianceService.deleteComplianceRecord(taskId);
+  res.status(200).json({ success: true, message: 'Compliance record officially deleted' });
+});
+
+// @desc    Edit the notes on an existing compliance record
+// @route   PATCH /compliance/:id/notes
+// @access  Private
+export const updateComplianceNote = asyncHandler(async (req, res) => {
+  const taskId = req.params.id;
+  const { notes } = req.body;
+  
+  const compliance = await complianceService.updateComplianceNote(taskId, notes);
   res.status(200).json({ success: true, compliance });
 });

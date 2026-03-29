@@ -106,6 +106,12 @@ function mapPatients(data) {
   });
 }
 
+function getAssignedAshaId(patient) {
+  if (!patient?.ashaId) return null;
+  if (typeof patient.ashaId === 'string') return patient.ashaId;
+  return patient.ashaId._id || null;
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const [isScanning, setIsScanning] = useState(false);
@@ -126,14 +132,19 @@ export default function Dashboard() {
         const headers = { Authorization: `Bearer ${token}` };
 
         const [patientsRes, tasksRes, alertsRes] = await Promise.all([
-          fetch('http://localhost:5000/patients/search', { headers }).catch(() => ({ ok: false })),
+          fetch('http://localhost:5000/patients/search?assigned=true', { headers }).catch(() => ({ ok: false })),
           fetch('http://localhost:5000/asha/me/tasks', { headers }).catch(() => ({ ok: false })),
           fetch('http://localhost:5000/alerts', { headers }).catch(() => ({ ok: false }))
         ]);
 
         if (patientsRes.ok) {
           const data = await patientsRes.json();
-          setPatients(mapPatients(data));
+          const storedUser = JSON.parse(localStorage.getItem('swasthya_user') || 'null');
+          const currentUserId = storedUser?._id || null;
+          const assignedPatients = currentUserId
+            ? data.filter((patient) => String(getAssignedAshaId(patient)) === String(currentUserId))
+            : data;
+          setPatients(mapPatients(assignedPatients));
         } else {
           // Fallback mock data for hackathon demo
           setPatients([

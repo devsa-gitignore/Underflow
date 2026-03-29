@@ -5,7 +5,7 @@ import Patient from '../models/Patient.js';
  * Log a new compliance record (e.g. VACCINATION COMPLETED, CHECKUP MISSED)
  */
 export const logCompliance = async (data, userRole = 'ASHA') => {
-  const { patientId, ashaId, type, status, date } = data;
+  const { patientId, ashaId, type, status, notes, date } = data;
 
   const patient = await Patient.findById(patientId);
   if (!patient) throw new Error('Patient not found');
@@ -20,6 +20,7 @@ export const logCompliance = async (data, userRole = 'ASHA') => {
     ashaId,
     type,
     status,
+    notes,
     date: date || Date.now()
   });
 
@@ -27,13 +28,10 @@ export const logCompliance = async (data, userRole = 'ASHA') => {
 };
 
 /**
- * Fetch a patient's entire compliance history
+ * Get all COMPLETED compliance history for a specific patient
  */
 export const getPatientComplianceHistory = async (patientId) => {
-  const patient = await Patient.findById(patientId);
-  if (!patient) throw new Error('Patient not found');
-
-  const history = await Compliance.find({ patientId })
+  const history = await Compliance.find({ patientId, status: 'COMPLETED' })
     .populate('patientId', 'name phone age village region')
     .sort({ date: -1 });
   return history;
@@ -74,6 +72,27 @@ export const resolveMissedTask = async (taskId) => {
 
   compliance.status = 'COMPLETED';
   
+  await compliance.save();
+  return compliance;
+};
+
+/**
+ * Delete a specific compliance record permanently from the database
+ */
+export const deleteComplianceRecord = async (taskId) => {
+  const compliance = await Compliance.findByIdAndDelete(taskId);
+  if (!compliance) throw new Error('Compliance record not found');
+  return compliance;
+};
+
+/**
+ * Update the optional notes attached to a compliance action
+ */
+export const updateComplianceNote = async (taskId, newNotes) => {
+  const compliance = await Compliance.findById(taskId);
+  if (!compliance) throw new Error('Compliance record not found');
+  
+  compliance.notes = newNotes;
   await compliance.save();
   return compliance;
 };

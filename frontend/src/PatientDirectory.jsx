@@ -119,6 +119,12 @@ function translateLastVisit(lastVisit, language, text) {
     .replace(' month ago', ` ${text.monthsAgo}`);
 }
 
+function getAssignedAshaId(patient) {
+  if (!patient?.ashaId) return null;
+  if (typeof patient.ashaId === 'string') return patient.ashaId;
+  return patient.ashaId._id || null;
+}
+
 export default function PatientDirectory() {
   const navigate = useNavigate();
   const { language } = useLanguage();
@@ -133,14 +139,19 @@ export default function PatientDirectory() {
       setIsLoading(true);
       try {
         const token = await getStoredToken();
-        const response = await fetch('http://localhost:5000/patients/search', {
+        const response = await fetch('http://localhost:5000/patients/search?assigned=true', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         });
         if (response.ok) {
           const data = await response.json();
-          const mapped = data.map((p) => {
+          const storedUser = JSON.parse(localStorage.getItem('swasthya_user') || 'null');
+          const currentUserId = storedUser?._id || null;
+          const assignedPatients = currentUserId
+            ? data.filter((patient) => String(getAssignedAshaId(patient)) === String(currentUserId))
+            : data;
+          const mapped = assignedPatients.map((p) => {
             const riskLower = (p.currentRiskLevel || 'low').toLowerCase();
             const riskColor = (riskLower === 'critical' || riskLower === 'high') ? 'red' : riskLower === 'medium' ? 'yellow' : 'green';
             const tags = [];
